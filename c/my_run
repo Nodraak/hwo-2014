@@ -1,0 +1,14 @@
+#!/bin/bash -e
+
+source ../config
+#source ./scripts/check_main_args
+
+#if [ ! -z "$3" ]; then
+#  export BOTNAME="$3"
+#fi
+
+export HOST="testserver.helloworldopen.com"
+export PORT="8091"
+
+
+(./run $HOST $PORT "$BOTNAME" "$BOTKEY")

@@ -1,6 +1,6 @@
 PROGRAM = cbot
 SOURCES = $(wildcard *.c)
-CFLAGS += -Wall
+CFLAGS += -Wall -Wextra -pedantic -ansi
 LDLIBS += -lm
 
 all: $(PROGRAM)
@@ -10,4 +10,8 @@ $(PROGRAM): $(SOURCES)
 clean:
 	rm -f $(PROGRAM)
 
-.PHONY: clean
+re: clean all
+
+
+.PHONY: clean, re
+

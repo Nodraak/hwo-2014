@@ -8,7 +8,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+
 #include "cJSON.h"
+
+#include "ft_utils.h"
 
 static cJSON *ping_msg();
 static cJSON *join_msg(char *bot_name, char *bot_key);
@@ -97,18 +100,24 @@ int main(int argc, char *argv[])
     write_msg(sock, json);
     cJSON_Delete(json);
 
-    while ((json = read_msg(sock)) != NULL) {
+    while ((json = read_msg(sock)) != NULL)
+	{
         cJSON *msg, *msg_type;
         char *msg_type_name;
+
+		ft_utils_data_parse(json);
 
         msg_type = cJSON_GetObjectItem(json, "msgType");
         if (msg_type == NULL)
             error("missing msgType field");
 
         msg_type_name = msg_type->valuestring;
-        if (!strcmp("carPositions", msg_type_name)) {
+        if (!strcmp("carPositions", msg_type_name))
+		{
             msg = throttle_msg(0.5);
-        } else {
+        }
+		else
+		{
             log_message(msg_type_name, json);
             msg = ping_msg();
         }

@@ -14,6 +14,9 @@ void ft_utils_info_join_print(cJSON *data);
 void ft_utils_info_yourCar_print(cJSON *data);
 void ft_utils_data_raw_print(char *type, cJSON *data);
 
+
+cJSON *ft_utils_field_find(char *s, cJSON* head);
 void ft_utils_track_parse(cJSON *data);
+void ft_utils_piece_parse(cJSON *current, int level);
 
 #endif /* FT_UTILS_H */

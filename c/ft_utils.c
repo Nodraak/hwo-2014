@@ -14,6 +14,14 @@
 
 #include "ft_utils.h"
 
+/*
+## notes ##
+
+angle :
+	left = neg | right = pos
+
+
+*/
 
 void ft_utils_data_parse(cJSON *json)
 {
@@ -74,12 +82,66 @@ void ft_utils_data_raw_print(char *type, cJSON *data)
 	free(s);
 }
 
+
+/* find first matching s */
+cJSON *ft_utils_field_find(char *s, cJSON* head)
+{
+	cJSON *current = head, *ret = NULL;
+
+	if (s == NULL)
+		return NULL;
+
+	while (current != NULL)
+	{
+		if (strcmp(current->string, s) == 0)
+			return current;
+
+		if (current->child != NULL)
+		{
+			ret = ft_utils_field_find(s, current->child);
+			if (ret != NULL && strcmp(ret->string, s) == 0)
+				return ret;
+		}
+
+		current = current->next;
+	}
+
+	return NULL;
+}
+
 void ft_utils_track_parse(cJSON *data)
 {
+	cJSON *current = data;
 
+	current = ft_utils_field_find("pieces", data)->child;
 
+	ft_utils_piece_parse(current, 0);
+}
 
+void ft_utils_piece_parse(cJSON *current, int level)
+{
+	int i;
+	
+	while (current != NULL)
+	{
+		for (i = 0; i < level; ++i)
+			printf("\t");
 
+		if (cJSON_False == current->type)
+			printf("%s : False\n", current->string);
+		else if (cJSON_True == current->type)
+			printf("%s : True\n", current->string);
+		else if (cJSON_NULL == current->type)
+			printf("cJSON_NULL == current->type | %d %s\n", __LINE__, __FILE__);
+		else if (cJSON_Number == current->type)
+			printf("%s : %.3f\n", current->string, current->valuedouble);
+		else if (cJSON_String == current->type)
+			printf("%s : %s\n", current->string, current->valuestring);
+		else if (cJSON_Array == current->type || cJSON_Object == current->type)
+			printf("new stuff :\n"), ft_utils_piece_parse(current->child, level+1);
+
+		current = current->next;
+	}
 }
 
 

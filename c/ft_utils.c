@@ -1,16 +1,9 @@
-/*******************************************************************************
-*
-*  File Name : utils.c
-*
-*  Purpose :
-*
-*  Creation Date : 16-04-14 21:40:19
-*
-*  Last Modified : 16-04-14 22:03:41
-*
-*  Created By : Nodraak
-*
-*******************************************************************************/
+/* 
+* @Author: Adrien Chardon
+* @Date:   2014-04-16 23:53:27
+* @Last Modified by:   Adrien Chardon
+* @Last Modified time: 2014-04-17 00:05:01
+*/
 
 #include "ft_utils.h"
 
@@ -46,6 +39,10 @@ void ft_utils_data_parse(cJSON *json)
 		ft_utils_data_raw_print("GAME END", data);
 	else
 		printf("==> unhandled : %s\n", msgType);
+
+	data = cJSON_GetObjectItem(json, "gameTick");
+	if (data)
+		printf("gameTick=%d\n", data->valueint);
 }
 
 void ft_utils_info_join_print(cJSON *data)
@@ -112,33 +109,46 @@ cJSON *ft_utils_field_find(char *s, cJSON* head)
 void ft_utils_track_parse(cJSON *data)
 {
 	cJSON *current = data;
+	t_track_info track = {0, 0};
+	FILE *f;
 
 	current = ft_utils_field_find("pieces", data)->child;
 
-	ft_utils_piece_parse(current, 0);
+	f = fopen("track.txt", "w");
+	ft_utils_piece_parse(current, &track, f);
+	fclose(f);
+	printf("Total length : %.3f\nNb elem : %d\n", track.length, track.nb_elem);
+
+	ft_graph_build();
 }
 
-void ft_utils_piece_parse(cJSON *current, int level)
+void ft_utils_piece_parse(cJSON *current, t_track_info *data, FILE *f)
 {
-	int i;
-	
 	while (current != NULL)
 	{
-		for (i = 0; i < level; ++i)
-			printf("\t");
+		if (current->string != NULL && strcmp(current->string, "length") == 0)
+			data->length += current->valuedouble;
+
+		if (current->string != NULL && strcmp(current->string, "radius") == 0
+			&& current->next->string != NULL && strcmp(current->next->string, "angle") == 0)
+			data->length += current->valuedouble * abs(current->next->valuedouble) * 2 * M_PI / 360;
 
 		if (cJSON_False == current->type)
-			printf("%s : False\n", current->string);
+			fprintf(f, "%s False\n", current->string);
 		else if (cJSON_True == current->type)
-			printf("%s : True\n", current->string);
+			fprintf(f, "%s True\n", current->string);
 		else if (cJSON_NULL == current->type)
-			printf("cJSON_NULL == current->type | %d %s\n", __LINE__, __FILE__);
+			fprintf(f, "cJSON_NULL == current->type | %d %s\n", __LINE__, __FILE__);
 		else if (cJSON_Number == current->type)
-			printf("%s : %.3f\n", current->string, current->valuedouble);
+			fprintf(f, "%s %.3f\n", current->string, current->valuedouble);
 		else if (cJSON_String == current->type)
-			printf("%s : %s\n", current->string, current->valuestring);
+			fprintf(f, "%s %s\n", current->string, current->valuestring);
 		else if (cJSON_Array == current->type || cJSON_Object == current->type)
-			printf("new stuff :\n"), ft_utils_piece_parse(current->child, level+1);
+		{
+			fprintf(f, "new\n");
+			data->nb_elem ++;
+			ft_utils_piece_parse(current->child, data, f);
+		}
 
 		current = current->next;
 	}

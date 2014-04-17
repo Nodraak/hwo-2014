@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 16:12:08
+* @Last Modified time: 2014-04-17 16:50:57
 */
 
 #include "ft_utils.h"
@@ -14,11 +14,16 @@ angle :
 	left = neg | right = pos
 
 
+
+work time :
+	16 avril : 19h-2h -> 7h
+	17 avril : 13h-?? -> 4h
+
 */
 
 
 
-/* start (pieceIndex) | speed (between 0 and 10) */
+/* start (pieceIndex) || speed (between 0 and 10) */
 #define MAX		10
 int raceData[MAX][2] = {
 	{0, 10},
@@ -31,6 +36,17 @@ int raceData[MAX][2] = {
 	{25, 6},
 	{34, 10},
 	{40, 10} /* end - usefull ? -> yes */
+};
+
+/* pieceid || direction (-1 left | 0 none | +1 right) || done */
+int switchLane[7][3] = {
+	{3,1,0},
+	{8,-1,0},
+	{13,0,0},
+	{18,1,0},
+	{25,0,0},
+	{29,-1,0},
+	{35,1,0}
 };
 
 double my_abs(double n)
@@ -54,7 +70,7 @@ double ft_utils_get_speed(t_all *all)
 
 	newSpeed = raceData[i][1];
 
-	if (my_abs(newSpeed - all->speed) > 1) /* if big diff between the two speeds */
+	if (my_abs(newSpeed - all->speed) > 0.1) /* if big diff between the two speeds */
 	{
 		/* force quick change */
 		if (newSpeed < all->speed)
@@ -64,6 +80,26 @@ double ft_utils_get_speed(t_all *all)
 	}
 
 	return (double)newSpeed/10;
+}
+
+cJSON *ft_utils_get_switch(t_all *all)
+{
+	cJSON *msg = NULL;
+	int i;
+
+	for (i = 0; i < 7; ++i)
+	{
+		if (switchLane[i][0] == all->pieceIndex && switchLane[i][2] == 0)
+		{
+			switchLane[i][2] = 1;
+			if (switchLane[i][1] == -1)
+				msg = make_msg("switchLane", cJSON_CreateString("Left"));
+			else if (switchLane[i][1] == 1)
+				msg = make_msg("switchLane", cJSON_CreateString("Right"));
+		}
+	}
+
+	return msg;
 }
 
 
@@ -85,8 +121,12 @@ cJSON *ft_main_loop(cJSON *json)
 	if (!strcmp("carPositions", msg_type_name))
 	{
 		double speed = ft_utils_get_speed(&all);
+		cJSON *switchOrder = ft_utils_get_switch(&all);
 		
-		msg = throttle_msg(speed);
+		if (switchOrder != NULL)
+			msg = switchOrder;
+		else
+			msg = throttle_msg(speed);
 	}
 	else
 	{
@@ -109,9 +149,13 @@ void ft_utils_data_parse(cJSON *json, t_all *all)
 	data = cJSON_GetObjectItem(json, "data");
 
 	if (strcmp(msgType, "join") == 0)
+	{
 		ft_utils_info_join_print(data);
+	}
 	else if (strcmp(msgType, "yourCar") == 0)
+	{
 		ft_utils_info_yourCar_print(data);
+	}
 	else if (strcmp(msgType, "gameInit") == 0)
 	{
 		cJSON *tmp = ft_utils_field_find("name", json);
@@ -123,18 +167,33 @@ void ft_utils_data_parse(cJSON *json, t_all *all)
 		/*ft_utils_data_raw_print("GAME INIT", data);*/
 	}
 	else if (strcmp(msgType, "gameStart") == 0)
-		printf("\t==> GAME START\n");
+	{
+		printf("==> GAME START\n");
+	}
 	else if (strcmp(msgType, "carPositions") == 0)
 	{
 		/*ft_utils_data_raw_print("CAR POS", data);*/
 		ft_update_car_data(data, all);
-		printf("index=%2d distance=%3.3f | speed=%2.2f angle=%2.2f\n", all->pieceIndex, all->inPieceDistance, all->speed, all->angle);
+		printf("i=%2d d=%3.1f | s=%2.1f a=%2.1f\n",
+				all->pieceIndex, all->inPieceDistance, all->speed, all->angle);
 
 	}
 	else if (strcmp(msgType, "gameEnd") == 0)
+	{
 		ft_utils_data_raw_print("GAME END", data);
+	}
+	else if (strcmp(msgType, "lapFinished") == 0)
+	{
+		printf("==> New lap\n");
+		int i;
+
+		for (i = 0; i < 7; ++i)
+			switchLane[i][2] = 0;
+	}
 	else
+	{
 		printf("==> unhandled : %s\n", msgType);
+	}
 
 	/*data = cJSON_GetObjectItem(json, "gameTick");
 	if (data)

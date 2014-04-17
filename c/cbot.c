@@ -92,15 +92,7 @@ int main(int argc, char *argv[])
     write_msg(sock, json);
     cJSON_Delete(json);
 
-    while ((json = read_msg(sock)) != NULL)
-	{
-        cJSON *msg = ft_main_loop(json);
-
-        write_msg(sock, msg);
-
-        cJSON_Delete(msg);
-        cJSON_Delete(json);
-    }
+    ft_main_loop(sock);
 
     return 0;
 }

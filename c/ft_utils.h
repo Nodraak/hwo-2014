@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 15:44:36
+* @Last Modified time: 2014-04-17 19:18:30
 */
 
 #ifndef FT_UTILS_H
@@ -18,35 +18,60 @@
 #include "cbot.h"
 #include "ft_graph.h"
 
-#define MAX_SPEED_TURN		0.65
+#define MAX_SPEED		6.5
+
+enum e_piece_parse
+{
+	PIECE_PARSE_COUNT,
+	PIECE_PARSE_BUILD
+};
+
+enum e_piece_type
+{
+	PIECE_TYPE_RIGHT,
+	PIECE_TYPE_CURVE
+};
+
+typedef struct		s_track_piece
+{
+	int				type;
+	double 			length;
+}					t_track_piece;
 
 typedef struct		s_track_info
 {
-	double 			length;
-	int				nb_elem;
+	double 			lengthTotal;
+	int				nbElem;
+	t_track_piece	*pieces;
 }					t_track_info;
 
-typedef struct		s_all
+typedef struct		s_car_basic
 {
+	double			pos;
+
 	int				pieceIndex;
 	double			inPieceDistance;
 	double			speed;
 	double			angle;
-}					t_all;
+}					t_car_basic;
 
-cJSON *ft_main_loop(cJSON *json);
 
-void ft_utils_data_parse(cJSON *json, t_all *all);
+void ft_main_loop(int sock);
+void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo);
 
-void ft_update_car_data(cJSON *data, t_all *all);
+double my_abs(double n);
 
-void ft_utils_info_join_print(cJSON *data);
-void ft_utils_info_yourCar_print(cJSON *data);
+double ft_utils_get_speed(t_car_basic *all);
+cJSON *ft_utils_get_switch(t_car_basic *all);
+
+void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo);
+
 void ft_utils_data_raw_print(char *type, cJSON *data);
-
-
 cJSON *ft_utils_field_find(char *s, cJSON* head);
-char **ft_utils_track_parse(cJSON *data);
-void ft_utils_piece_parse(cJSON *current, t_track_info *data, FILE *f);
+
+void ft_utils_track_parse(cJSON *data, t_track_info *track);
+void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour);
+
+
 
 #endif /* FT_UTILS_H */

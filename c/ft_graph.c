@@ -2,24 +2,41 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:43:50
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 01:56:34
+* @Last Modified time: 2014-04-17 02:28:56
 */
 
 #include "ft_graph.h"
 
 
-void ft_graph_build(void)
+char **ft_graph_build(void)
 {
 /*#ifdef ENABLE_GRAPH*/
+
+	#define SIZE_X		120
+	#define SIZE_Y		60
+	#define OFFSET_X	600
+	#define OFFSET_Y	500
+
+
+
+
 	t_pos pos = {0, 0, 0};
 	t_pos min = {0, 0, 0}, max = {0, 0, 0};
 	FILE *f;
 	char s[1000];
-	char tab[50][120];
+	char **tab;
 	int i, j;
 	int id = 0;
-
-	memset(tab, ' ', 50*120*1);
+	tab = malloc(sizeof(char*)*SIZE_Y);
+	if (tab == NULL)
+		exit(43);
+	for (j = 0; j < SIZE_Y; ++j)
+	{
+		tab[j] = malloc(sizeof(char)*SIZE_X);
+		if (tab[j] == NULL)
+			exit(44);
+		memset(tab[j], ' ', SIZE_X);
+	}
 
 	f = fopen("track.txt", "r");
 	if (f == NULL)
@@ -65,45 +82,41 @@ void ft_graph_build(void)
 			pos.x += diffx;
 			pos.y += diffy;
 
-			if (pos.angle < 0)
-				pos.angle += 360;
-			if (pos.angle >= 360)
-				pos.angle -= 360;
+			if (pos.angle < 0) pos.angle += 360;
+			if (pos.angle >= 360) pos.angle -= 360;
 
 		}
 
-		if (pos.x < min.x)
-			min.x = pos.x;
-		if (pos.y < min.y)
-			min.y = pos.y;
-		if (pos.x > max.x)
-			max.x = pos.x;
-		if (pos.y > max.y)
-			max.y = pos.y;
+		if (pos.x < min.x) min.x = pos.x;
+		if (pos.y < min.y) min.y = pos.y;
+		if (pos.x > max.x) max.x = pos.x;
+		if (pos.y > max.y) max.y = pos.y;
 
-		printf("data %d %d %d\n", len, angle, radius);
-		printf("\t\t\t\tcurrent %.3f %.3f | %.3f\n", pos.x, pos.y, pos.angle);
+		printf("data %d %d %d", len, angle, radius);
+		printf("\t\tcurrent %.3f %.3f | %.3f\n", pos.x, pos.y, pos.angle);
 
-		if (50-(int)(pos.y+500)/10 >= 0 && 50-(int)(pos.y+500)/10 < 50
-			&& (int)(pos.x+600)/10 >= 0 && (int)(pos.x+600)/10 < 120)
-			tab[50-(int)(pos.y+500)/10][(int)(pos.x+600)/10] = '0' + (id%10);
-		if (50-(int)(pos.y+500)/10 >= 0 && 50-(int)(pos.y+500)/10 < 50
-			&& (int)(pos.x+600)/10-1 >= 0 && (int)(pos.x+600)/10-1 < 120)
-			tab[50-(int)(pos.y+500)/10][(int)(pos.x+600)/10-1] = '0' + (id/10);
+		int x = (pos.x+OFFSET_X)/10;
+		int y = (pos.y+OFFSET_Y)/10;
+
+		if (y >= 0 && y < SIZE_Y && x >= 0 && x < SIZE_X)
+			tab[y][x] = '0' + (id%10);
+		if (y >= 0 && y < SIZE_Y && x-1 >= 0 && x-1 < SIZE_X)
+			tab[y][x-1] = '0' + (id/10);
 		id++;
 	}
 
-	printf("min : x=%.3f y=%.3f\n", min.x, min.y);
+	printf("\nmin : x=%.3f y=%.3f\t", min.x, min.y);
 	printf("max : x=%.3f y=%.3f\n", max.x, max.y);
 
-	for (j = 0; j < 50; ++j)
+	for (j = SIZE_Y-1; j >= 0; --j)
 	{
-		for (i = 0; i < 120; ++i)
+		for (i = 0; i < SIZE_X; ++i)
 			printf("%c", tab[j][i]);
 		printf("\n");
 	}
 
 	fclose(f);
+	return tab;
 /*#else
 	printf("Info : no graph enabled. Continuing ...\n");
 #endif*/

@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 00:05:01
+* @Last Modified time: 2014-04-17 02:14:28
 */
 
 #include "ft_utils.h"
@@ -20,6 +20,7 @@ void ft_utils_data_parse(cJSON *json)
 {
 	char *msgType = NULL;
 	cJSON *data = NULL;
+	char **ptr;
 
 	msgType = cJSON_GetObjectItem(json, "msgType")->valuestring;
 	data = cJSON_GetObjectItem(json, "data");
@@ -43,6 +44,13 @@ void ft_utils_data_parse(cJSON *json)
 	data = cJSON_GetObjectItem(json, "gameTick");
 	if (data)
 		printf("gameTick=%d\n", data->valueint);
+
+
+	data = cJSON_GetObjectItem(json, "msgType");
+	if (0 == strcmp("carPositions", data->valuestring))
+	{
+
+	}
 }
 
 void ft_utils_info_join_print(cJSON *data)
@@ -106,7 +114,7 @@ cJSON *ft_utils_field_find(char *s, cJSON* head)
 	return NULL;
 }
 
-void ft_utils_track_parse(cJSON *data)
+char **ft_utils_track_parse(cJSON *data)
 {
 	cJSON *current = data;
 	t_track_info track = {0, 0};
@@ -119,7 +127,7 @@ void ft_utils_track_parse(cJSON *data)
 	fclose(f);
 	printf("Total length : %.3f\nNb elem : %d\n", track.length, track.nb_elem);
 
-	ft_graph_build();
+	return ft_graph_build();
 }
 
 void ft_utils_piece_parse(cJSON *current, t_track_info *data, FILE *f)

@@ -10,18 +10,10 @@
 
 
 #include "cJSON.h"
-
+#include "cbot.h"
 #include "ft_utils.h"
 
-static cJSON *ping_msg();
-static cJSON *join_msg(char *bot_name, char *bot_key);
-static cJSON *throttle_msg(double throttle);
-static cJSON *make_msg(char *type, cJSON *msg);
-
-static cJSON *read_msg(int fd);
-static void write_msg(int fd, cJSON *msg);
-
-static void error(char *fmt, ...)
+void error(char *fmt, ...)
 {
     char buf[BUFSIZ];
 
@@ -38,7 +30,7 @@ static void error(char *fmt, ...)
     exit(1);
 }
 
-static int connect_to(char *hostname, char *port)
+int connect_to(char *hostname, char *port)
 {
     int status;
     int fd;
@@ -65,7 +57,7 @@ static int connect_to(char *hostname, char *port)
     return fd;
 }
 
-static void log_message(char *msg_type_name, cJSON *msg)
+void log_message(char *msg_type_name, cJSON *msg)
 {
     cJSON *msg_data;
 
@@ -102,25 +94,7 @@ int main(int argc, char *argv[])
 
     while ((json = read_msg(sock)) != NULL)
 	{
-        cJSON *msg, *msg_type;
-        char *msg_type_name;
-
-		ft_utils_data_parse(json);
-
-        msg_type = cJSON_GetObjectItem(json, "msgType");
-        if (msg_type == NULL)
-            error("missing msgType field");
-
-        msg_type_name = msg_type->valuestring;
-        if (!strcmp("carPositions", msg_type_name))
-		{
-            msg = throttle_msg(0.5);
-        }
-		else
-		{
-            log_message(msg_type_name, json);
-            msg = ping_msg();
-        }
+        cJSON *msg = ft_main_loop(json);
 
         write_msg(sock, msg);
 
@@ -131,12 +105,12 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-static cJSON *ping_msg()
+cJSON *ping_msg()
 {
     return make_msg("ping", cJSON_CreateString("ping"));
 }
 
-static cJSON *join_msg(char *bot_name, char *bot_key)
+cJSON *join_msg(char *bot_name, char *bot_key)
 {
     cJSON *data = cJSON_CreateObject();
     cJSON_AddStringToObject(data, "name", bot_name);
@@ -145,12 +119,12 @@ static cJSON *join_msg(char *bot_name, char *bot_key)
     return make_msg("join", data);
 }
 
-static cJSON *throttle_msg(double throttle)
+cJSON *throttle_msg(double throttle)
 {
     return make_msg("throttle", cJSON_CreateNumber(throttle));
 }
 
-static cJSON *make_msg(char *type, cJSON *data)
+cJSON *make_msg(char *type, cJSON *data)
 {
     cJSON *json = cJSON_CreateObject();
     cJSON_AddStringToObject(json, "msgType", type);
@@ -158,7 +132,7 @@ static cJSON *make_msg(char *type, cJSON *data)
     return json;
 }
 
-static cJSON *read_msg(int fd)
+cJSON *read_msg(int fd)
 {
     int bufsz, readsz;
     char *readp, *buf;
@@ -189,7 +163,7 @@ static cJSON *read_msg(int fd)
     return json;
 }
 
-static void write_msg(int fd, cJSON *msg)
+void write_msg(int fd, cJSON *msg)
 {
     char nl = '\n';
     char *msg_str;

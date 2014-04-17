@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 02:11:14
+* @Last Modified time: 2014-04-17 14:21:11
 */
 
 #ifndef FT_UTILS_H
@@ -15,7 +15,10 @@
 #include <math.h>		/* M_PI */
 
 #include "cJSON.h"
+#include "cbot.h"
 #include "ft_graph.h"
+
+#define MAX_SPEED	0.7
 
 typedef struct		s_track_info
 {
@@ -23,7 +26,19 @@ typedef struct		s_track_info
 	int				nb_elem;
 }					t_track_info;
 
-void ft_utils_data_parse(cJSON *json);
+typedef struct		s_all
+{
+	int				pieceIndex;
+	double			inPieceDistance;
+	double			speed;
+	double			angle;
+}					t_all;
+
+cJSON *ft_main_loop(cJSON *json);
+
+void ft_utils_data_parse(cJSON *json, t_all *all);
+
+void ft_update_car_data(cJSON *data, t_all *all);
 
 void ft_utils_info_join_print(cJSON *data);
 void ft_utils_info_yourCar_print(cJSON *data);

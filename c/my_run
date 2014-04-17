@@ -7,8 +7,11 @@ source ../config
 #  export BOTNAME="$3"
 #fi
 
-export HOST="testserver.helloworldopen.com"
-export PORT="8091"
 
 
-(./run $HOST $PORT "$BOTNAME" "$BOTKEY")
+./run testserver.helloworldopen.com 8091 Nodraak ey8JSibC+rMZ0w
+
+
+
+
+

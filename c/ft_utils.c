@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 14:46:02
+* @Last Modified time: 2014-04-17 16:12:08
 */
 
 #include "ft_utils.h"
@@ -17,11 +17,61 @@ angle :
 */
 
 
+
+/* start (pieceIndex) | speed (between 0 and 10) */
+#define MAX		10
+int raceData[MAX][2] = {
+	{0, 10},
+	{2, 6},
+	{7, 10},
+	{12, 6},
+	{17, 10},
+	{18, 6},
+	{23, 10},
+	{25, 6},
+	{34, 10},
+	{40, 10} /* end - usefull ? -> yes */
+};
+
+double my_abs(double n)
+{
+	return (n < 0 ? -n : n);
+}
+
+double ft_utils_get_speed(t_all *all)
+{
+	int i = 0;
+	int found = 0;
+	int newSpeed; /* between 0 and 10 */
+
+	while (!found)
+	{
+		if (all->pieceIndex >= raceData[i+1][0])
+			i++;
+		else
+			found = 1;
+	}
+
+	newSpeed = raceData[i][1];
+
+	if (my_abs(newSpeed - all->speed) > 1) /* if big diff between the two speeds */
+	{
+		/* force quick change */
+		if (newSpeed < all->speed)
+			newSpeed = 0;
+		else if (newSpeed > all->speed)
+			newSpeed = 10;
+	}
+
+	return (double)newSpeed/10;
+}
+
+
 cJSON *ft_main_loop(cJSON *json)
 {
 	cJSON *msg, *msg_type;
 	char *msg_type_name;
-	t_all all = {0, 0, 0, 0};
+	static t_all all = {0, 0, 0, 0};
 
 	/* handle recieved data and updated info */
 	ft_utils_data_parse(json, &all);
@@ -34,18 +84,8 @@ cJSON *ft_main_loop(cJSON *json)
 	msg_type_name = msg_type->valuestring;
 	if (!strcmp("carPositions", msg_type_name))
 	{
-		static int ok = 0;
-		double speed;
-		if (!ok)
-		{
-			speed = 1;
-			if (all.speed >= 0.5)
-				ok = 1;
-		}
-		else
-		{
-			speed = 0;
-		}
+		double speed = ft_utils_get_speed(&all);
+		
 		msg = throttle_msg(speed);
 	}
 	else
@@ -73,15 +113,22 @@ void ft_utils_data_parse(cJSON *json, t_all *all)
 	else if (strcmp(msgType, "yourCar") == 0)
 		ft_utils_info_yourCar_print(data);
 	else if (strcmp(msgType, "gameInit") == 0)
+	{
+		cJSON *tmp = ft_utils_field_find("name", json);
+
+		if (tmp != NULL && strcmp(tmp->valuestring, "Keimola") != 0)
+			error("Unknown race. %d %s\n", __LINE__, __FILE__);
+
 		ptr = ft_utils_track_parse(data);
 		/*ft_utils_data_raw_print("GAME INIT", data);*/
+	}
 	else if (strcmp(msgType, "gameStart") == 0)
 		printf("\t==> GAME START\n");
 	else if (strcmp(msgType, "carPositions") == 0)
 	{
 		/*ft_utils_data_raw_print("CAR POS", data);*/
 		ft_update_car_data(data, all);
-		printf("%d\t%.3f\t%.3f\t%.3f\n", all->pieceIndex, all->inPieceDistance, all->speed, all->angle);
+		printf("index=%2d distance=%3.3f | speed=%2.2f angle=%2.2f\n", all->pieceIndex, all->inPieceDistance, all->speed, all->angle);
 
 	}
 	else if (strcmp(msgType, "gameEnd") == 0)
@@ -98,6 +145,8 @@ void ft_utils_data_parse(cJSON *json, t_all *all)
 void ft_update_car_data(cJSON *data, t_all *all)
 {
 	cJSON *ret = NULL;
+	static double old = 0;
+	double speed;
 
 	/* pieceIndex */
 	ret = ft_utils_field_find("pieceIndex", data);
@@ -118,16 +167,11 @@ void ft_update_car_data(cJSON *data, t_all *all)
 	all->angle = ret->valuedouble;
 
 	/* speed */
-	ret = ft_utils_field_find("inPieceDistance", data);
-	if (ret != NULL)
-	{
-		static double old = 0;
-		double speed = ret->valuedouble - old;
-		old = ret->valuedouble;
-
-		if (speed >= 0)
-			all->speed = speed;
-	}
+	speed = all->inPieceDistance - old;
+	old = all->inPieceDistance;
+	
+	if (speed > 0)
+		all->speed = speed;
 }
 
 void ft_utils_info_join_print(cJSON *data)

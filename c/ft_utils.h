@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 14:21:11
+* @Last Modified time: 2014-04-17 15:44:36
 */
 
 #ifndef FT_UTILS_H
@@ -18,7 +18,7 @@
 #include "cbot.h"
 #include "ft_graph.h"
 
-#define MAX_SPEED	0.7
+#define MAX_SPEED_TURN		0.65
 
 typedef struct		s_track_info
 {

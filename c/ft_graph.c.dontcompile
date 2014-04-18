@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:43:50
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 14:43:41
+* @Last Modified time: 2014-04-18 17:37:36
 */
 
 #include "ft_graph.h"
@@ -137,3 +137,11 @@ char **ft_graph_build(void)
 	fclose(f);
 	return tab;
 }
+
+
+int main(void)
+{
+	(void)ft_graph_build();
+	return 0;
+}
+

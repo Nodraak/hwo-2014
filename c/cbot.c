@@ -109,7 +109,7 @@ cJSON *join_msg(char *bot_name, char *bot_key)
     cJSON_AddStringToObject(botId, "name", bot_name);
     cJSON_AddStringToObject(botId, "key", bot_key);
     cJSON_AddItemToObject(data, "botId", botId);
-    cJSON_AddNumberToObject(data, "carCount", 1);
+    cJSON_AddNumberToObject(data, "carCount", NB_PLAYER);
 #ifdef TRACK_NAME
     cJSON_AddStringToObject(data, "trackName", TRACK_NAME);
 #endif

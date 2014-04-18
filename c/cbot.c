@@ -104,44 +104,16 @@ cJSON *ping_msg()
 
 cJSON *join_msg(char *bot_name, char *bot_key)
 {
-    /*cJSON *data = cJSON_CreateObject();
-    cJSON_AddStringToObject(data, "name", bot_name);
-    cJSON_AddStringToObject(data, "key", bot_key);
-    return make_msg("join", data);*/
-
-/*
-{
-    "msgType": "join",
-    "data": {
-        "name": "Schumacher",
-        "key": "UEWJBVNHDS"
-    }
-}
-*/
-
     cJSON *botId = cJSON_CreateObject();
     cJSON *data = cJSON_CreateObject();
     cJSON_AddStringToObject(botId, "name", bot_name);
     cJSON_AddStringToObject(botId, "key", bot_key);
     cJSON_AddItemToObject(data, "botId", botId);
     cJSON_AddNumberToObject(data, "carCount", 1);
-    cJSON_AddStringToObject(data, "trackName", "germany");
-
+#ifdef TRACK_NAME
+    cJSON_AddStringToObject(data, "trackName", TRACK_NAME);
+#endif
     return make_msg("joinRace", data);
-
-/*
-{
-    "msgType": "joinRace",
-    "data": {
-        "botId": {
-            "name": "keke",
-            "key": "IVMNERKWEW"
-        },
-        "trackName": "hockenheim",
-        "carCount": 3
-    }
-}
-*/
 }
 
 cJSON *throttle_msg(double throttle)

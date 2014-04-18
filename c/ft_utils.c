@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-18 09:20:37
+* @Last Modified time: 2014-04-18 14:10:41
 */
 
 #include "ft_utils.h"
@@ -124,21 +124,55 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 	else if (strcmp(msgType, "gameInit") == 0)
 	{
 		cJSON *name = NULL;
-		/*int i;*/
+		int i;
 
 		printf("==> GAME INIT\n");
 
+		ft_utils_track_parse(data, trackInfo);
 		name = ft_utils_field_find("name", json);
 
-		/*if (name != NULL && strcmp(name->valuestring, "Keimola") != 0)
-			error("Unknown race. %d %s\n", __LINE__, __FILE__);*/
-		#warning check race name, load or parse orders
+		/* load from file */
+		if (name != NULL && strcmp(name->valuestring, "Keimola") == 0)
+		{
+			FILE *f = NULL;
+			int valueInt, idOrder = 0, orderType;
+			double pos, valueDouble;
 
-		ft_utils_track_parse(data, trackInfo);
-		ft_utils_order_compute(trackInfo, orders);
+			printf("Info : knowned race, loading file ...\n");
+			f = fopen("raceData/Keimola.txt", "r");
+			if (f == NULL)
+				error("Error fopen %d %s\n", __LINE__, __FILE__);
+			while (!feof(f))
+			{
+				int ret = fscanf(f, "%lf\t%d\t%lf\t%d", &pos, &orderType, &valueDouble, &valueInt);
+				if (ret == 4)
+				{
+					ft_order_add(&orders[idOrder], pos, orderType, valueInt, valueDouble, ORDER_STATUS_ENABLED);
+					idOrder++;
+				}
+				else
+				{
+					while (idOrder < MAX_ORDERS)
+					{
+						ft_order_add(&orders[idOrder], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
+						idOrder++;
+					}
+					break;
+				}
+			}
+		}
+		else /* guess */
+		{
+			printf("Info : unknowned race, guessing from data ...\n");
 
-		/*for (i = 0; i < 25; ++i)
-			printf("%d - pos=%.2f value=%.1f\n", i, orders[i].pos, orders[i].valueDouble);*/
+			ft_utils_order_compute(trackInfo, orders);
+		}
+
+		printf("Orders : (type : speed=%d switch=%d) (switch : left=%d right=%d)\n",
+			ORDER_TYPE_SPEED, ORDER_TYPE_SWITCH, ORDER_SWITCH_LEFT, ORDER_SWITCH_RIGHT);
+		for (i = 0; orders[i].status != ORDER_STATUS_DISABLED; ++i)
+			printf("pos=%.2f\ttype=%d\tvalueD=%.1f\tvalueI=%d\n", orders[i].pos, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
+		printf("\n");
 	}
 	else if (strcmp(msgType, "gameStart") == 0)
 	{
@@ -369,7 +403,7 @@ void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour)
 void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders)
 {
 	int idOrder = 0, idTrack = 0, nbCurve = 0, haveAccelerate = 0;
-	
+#ifndef DISABLE_ORDERS
 	/* initial starting order */
 	ft_order_add(&orders[idOrder], 0, ORDER_TYPE_SPEED, 0, 10, ORDER_STATUS_ENABLED);
 	idOrder++;
@@ -409,7 +443,10 @@ void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders)
 	idOrder++;
 	ft_order_add(&orders[idOrder], 18-1, ORDER_TYPE_SWITCH, ORDER_SWITCH_RIGHT, 0, ORDER_STATUS_ENABLED);
 	idOrder++;
-
+#else
+ft_order_add(&orders[idOrder], 0, ORDER_TYPE_SPEED, 0, SPEED_DURING_TURN, ORDER_STATUS_ENABLED);
+idOrder++;
+#endif
 	while (idOrder < MAX_ORDERS)
 	{
 		ft_order_add(&orders[idOrder], 0, 0, 0, 0, ORDER_STATUS_DISABLED);

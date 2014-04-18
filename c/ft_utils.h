@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 22:33:16
+* @Last Modified time: 2014-04-18 13:56:27
 */
 
 #ifndef FT_UTILS_H
@@ -32,6 +32,15 @@
 
 /* acceleration start, before end of curve. (unit : pieceIndex) */
 #define ACC_DISTANCE			1.7
+
+/*
+	Keimola (finland)
+	germany
+*/
+
+
+//#define DISABLE_ORDERS
+//#define TRACK_NAME				"germany"
 
 enum e_piece_parse
 {

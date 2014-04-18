@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-17 19:22:10
+* @Last Modified time: 2014-04-18 09:20:37
 */
 
 #include "ft_utils.h"
@@ -17,26 +17,10 @@ angle :
 
 work time :
 	16 avril : 19h-2h -> 7h
-	17 avril : 13h-?? -> 4h
+	17 avril : 13h-23h (minus eat time : 2h) -> 8h
 
 */
 
-
-
-/* start (pieceIndex) || speed (between 0 and 10) */
-#define MAX		10
-int raceData[MAX][2] = {
-	{0, 10},
-	{2, 6},
-	{7, 10},
-	{12, 6},
-	{17, 10},
-	{18, 6},
-	{23, 10},
-	{25, 6},
-	{34, 10},
-	{40, 10} /* end - usefull ? -> yes */
-};
 
 /* pieceid || direction (-1 left | 0 none | +1 right) || done */
 int switchLane[5][3] = {
@@ -53,53 +37,75 @@ int switchLane[5][3] = {
 
 void ft_main_loop(int sock)
 {
-	cJSON *json;
+	cJSON *json = NULL;
+	cJSON *msg = NULL, *msg_type = NULL;
+	char *msg_type_name = NULL;
+	t_car_basic all = {0, 0, 0, 0, 0, 0};
+	t_track_info *trackInfo = NULL;
+	t_order *orders = NULL;
+	int isRaceStarted = 0;
 
+	/* init */
+	orders = calloc(MAX_ORDERS, sizeof(t_order));
+	if (orders == NULL)
+		error("Error malloc %d %s\n", __LINE__, __FILE__);
+	trackInfo = calloc(1, sizeof(t_track_info));
+	if (trackInfo == NULL)
+		error("Error malloc %d %s\n", __LINE__, __FILE__);
+
+	/* main loop */
 	while ((json = read_msg(sock)) != NULL)
 	{
-		cJSON *msg, *msg_type;
-		char *msg_type_name;
-		t_car_basic all = {0, 0, 0, 0, 0};
-		t_track_info trackInfo;
-
-		/* handle recieved data and updated info */
-		ft_utils_data_parse(json, &all, &trackInfo);
-
-		/* send data */
 		msg_type = cJSON_GetObjectItem(json, "msgType");
 		if (msg_type == NULL)
 			error("missing msgType field");
 
+		/* handle recieved data and updated info */
+		ft_utils_data_parse(json, &all, trackInfo, orders);
+
+		/* prepare data */
 		msg_type_name = msg_type->valuestring;
-		if (!strcmp("carPositions", msg_type_name))
+		if (strcmp("gameStart", msg_type_name) == 0)
 		{
-			double speed = ft_utils_get_speed(&all);
+			isRaceStarted = 1;
+		}
+		else if (!strcmp("carPositions", msg_type_name))
+		{
+			if (isRaceStarted)
+				msg = ft_order_get_next(&all, orders);
+		
+			/*double speed = ft_utils_get_speed(&all);
 			cJSON *switchOrder = ft_utils_get_switch(&all);
 			
 			if (switchOrder != NULL)
 				msg = switchOrder;
 			else
-				msg = throttle_msg(speed);
+				msg = throttle_msg(speed);*/
 		}
 		else
 		{
 			log_message(msg_type_name, json);
-			msg = ping_msg();
 		}
 
+		/* send data */
+		if (msg == NULL) /* nothing to say -> ping */
+				msg = ping_msg();
 		write_msg(sock, msg);
 
-		cJSON_Delete(msg);
-		cJSON_Delete(json);
+		cJSON_Delete(msg), msg = NULL;
+		cJSON_Delete(json), json = NULL;
 	}
+
+	printf("Read null msg, quitting ...\n");
 }
 
 
 
-void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo)
+void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo, t_order *orders)
 {
 	cJSON *data = NULL;
 	char *msgType = NULL;
+	char *s = NULL;
 
 	msgType = cJSON_GetObjectItem(json, "msgType")->valuestring;
 	data = cJSON_GetObjectItem(json, "data");
@@ -111,19 +117,28 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo)
 	else if (strcmp(msgType, "yourCar") == 0)
 	{
 		printf("==> YOUR CAR (color=%s)\n", cJSON_GetObjectItem(data, "color")->valuestring);
+		s = cJSON_Print(json);
+		printf("%s\n", s);
+		free(s);
 	}
 	else if (strcmp(msgType, "gameInit") == 0)
 	{
 		cJSON *name = NULL;
+		/*int i;*/
 
 		printf("==> GAME INIT\n");
 
 		name = ft_utils_field_find("name", json);
 
-		if (name != NULL && strcmp(name->valuestring, "Keimola") != 0)
-			error("Unknown race. %d %s\n", __LINE__, __FILE__);
+		/*if (name != NULL && strcmp(name->valuestring, "Keimola") != 0)
+			error("Unknown race. %d %s\n", __LINE__, __FILE__);*/
+		#warning check race name, load or parse orders
 
 		ft_utils_track_parse(data, trackInfo);
+		ft_utils_order_compute(trackInfo, orders);
+
+		/*for (i = 0; i < 25; ++i)
+			printf("%d - pos=%.2f value=%.1f\n", i, orders[i].pos, orders[i].valueDouble);*/
 	}
 	else if (strcmp(msgType, "gameStart") == 0)
 	{
@@ -133,10 +148,8 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo)
 	{
 		/*ft_utils_data_raw_print("CAR POS", data);*/
 		ft_update_car_data(data, all, trackInfo);
-		printf("i=%2d d=%3.1f | s=%2.1f a=%2.1f\t\t",
-				all->pieceIndex, all->inPieceDistance, all->speed, all->angle);
-
-		printf("%.2f\n", all->pos);
+		printf("pos=%3.2f | speed=%2.2f angle=%2.1f\n",
+				all->pos, all->speedActual, all->angle);
 	}
 	else if (strcmp(msgType, "gameEnd") == 0)
 	{
@@ -144,16 +157,13 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo)
 	}
 	else if (strcmp(msgType, "lapFinished") == 0)
 	{
-		int i;
 		printf("==> New lap\n");
-
-		for (i = 0; i < 5; ++i)
-			switchLane[i][2] = 0;
+		ft_utils_data_raw_print(msgType, json);
+		ft_order_reenable(orders);
 	}
 	else
 	{
-		printf("==> unhandled : %s\n", msgType);
-		ft_utils_data_raw_print("\tdata :", data);		
+		ft_utils_data_raw_print(msgType, json);
 	}
 
 	/*data = cJSON_GetObjectItem(json, "gameTick");
@@ -172,34 +182,7 @@ double my_abs(double n)
 /****************
  *  CALC  ORDER *
  ****************/
-
-double ft_utils_get_speed(t_car_basic *all)
-{
-	int i = 0;
-	int found = 0;
-	int newSpeed; /* between 0 and 10 */
-
-	while (!found)
-	{
-		if (all->pieceIndex >= raceData[i+1][0])
-			i++;
-		else
-			found = 1;
-	}
-
-	newSpeed = raceData[i][1];
-
-	if (my_abs(newSpeed - all->speed) > 0.1) /* if big diff between the two speeds */
-	{
-		/* force quick change */
-		if (newSpeed < all->speed)
-			newSpeed = 0;
-		else if (newSpeed > all->speed)
-			newSpeed = 10;
-	}
-
-	return (double)newSpeed/10;
-}
+#if 0
 
 cJSON *ft_utils_get_switch(t_car_basic *all)
 {
@@ -221,6 +204,7 @@ cJSON *ft_utils_get_switch(t_car_basic *all)
 
 	return msg;
 }
+#endif
 
 
 /*****************
@@ -256,7 +240,7 @@ void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo)
 	old = all->inPieceDistance;
 	
 	if (speed > 0)
-		all->speed = speed;
+		all->speedActual = speed;
 
 	all->pos = all->pieceIndex + all->inPieceDistance / trackInfo->pieces[all->pieceIndex].length;
 }
@@ -306,15 +290,9 @@ cJSON *ft_utils_field_find(char *s, cJSON* head)
 void ft_utils_track_parse(cJSON *data, t_track_info *track)
 {
 	cJSON *current = NULL;
-	FILE *f;
 	int i;
 
 	current = ft_utils_field_find("pieces", data)->child;
-
-	/* fopen */
-	f = fopen("track.txt", "w");
-	if (f == NULL)
-		error("Error fopen %d %s.\n", __LINE__, __FILE__);
 
 	/* get nbElem */
 	ft_utils_piece_parse(current, track, PIECE_PARSE_COUNT);
@@ -322,7 +300,7 @@ void ft_utils_track_parse(cJSON *data, t_track_info *track)
 	/* malloc */
 	track->pieces = calloc(track->nbElem, sizeof(t_track_piece));
 	if (track->pieces == NULL)
-		error("Error malloc %d %s.\n", __LINE__, __FILE__);
+		error("Error malloc (%d elem) %d %s.\n", track->nbElem, __LINE__, __FILE__);
 
 	/* build */
 	track->nbElem = 0;
@@ -331,8 +309,6 @@ void ft_utils_track_parse(cJSON *data, t_track_info *track)
 	for (i = 0; i < track->nbElem; ++i)
 		track->lengthTotal += track->pieces[i].length;
 
-	/* clean */
-	fclose(f);
 	printf("lengthTotal=%.1f - nbElem=%d\n", track->lengthTotal, track->nbElem);
 }
 
@@ -390,4 +366,128 @@ void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour)
 	}
 }
 
+void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders)
+{
+	int idOrder = 0, idTrack = 0, nbCurve = 0, haveAccelerate = 0;
+	
+	/* initial starting order */
+	ft_order_add(&orders[idOrder], 0, ORDER_TYPE_SPEED, 0, 10, ORDER_STATUS_ENABLED);
+	idOrder++;
+
+	for (idTrack = 0; idTrack < trackInfo->nbElem; ++idTrack)
+	{
+		if (trackInfo->pieces[idTrack].type == PIECE_TYPE_CURVE)
+		{
+			nbCurve ++;
+			/* if nbCurve == 3, big curve, add slow down to prevent crash */
+			if (nbCurve == 2)
+			{
+				ft_order_add(&orders[idOrder], idTrack-1-DISTANCE_TO_SLOW_DOWN, ORDER_TYPE_SPEED, 0, SPEED_DURING_TURN, ORDER_STATUS_ENABLED);
+				idOrder++;
+				haveAccelerate = 0;
+			}
+		}
+		else
+		{
+			nbCurve = 0;
+			/* add accelerate, if not yet added */
+			if (haveAccelerate == 0)
+			{
+				if (idTrack != 0) /* first yet added */
+				{
+					ft_order_add(&orders[idOrder], idTrack-ACC_DISTANCE, ORDER_TYPE_SPEED, 0, 10, ORDER_STATUS_ENABLED);
+					idOrder++;
+				}
+				haveAccelerate = 1;
+			}
+		}
+	}
+
+	ft_order_add(&orders[idOrder], 3-1, ORDER_TYPE_SWITCH, ORDER_SWITCH_RIGHT, 0, ORDER_STATUS_ENABLED);
+	idOrder++;
+	ft_order_add(&orders[idOrder], 8-1, ORDER_TYPE_SWITCH, ORDER_SWITCH_LEFT, 0, ORDER_STATUS_ENABLED);
+	idOrder++;
+	ft_order_add(&orders[idOrder], 18-1, ORDER_TYPE_SWITCH, ORDER_SWITCH_RIGHT, 0, ORDER_STATUS_ENABLED);
+	idOrder++;
+
+	while (idOrder < MAX_ORDERS)
+	{
+		ft_order_add(&orders[idOrder], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
+		idOrder++;
+	}
+}
+
+void ft_order_reenable(t_order *orders)
+{
+	int i;
+
+	for (i = 0; i < MAX_ORDERS; ++i)
+	{
+		if (orders[i].status == ORDER_STATUS_SENDED)
+			orders[i].status = ORDER_STATUS_ENABLED;
+	}
+}
+
+
+void ft_order_add(t_order *order, double pos, int type, int valueInt, double valueDouble, int status)
+{
+	order->pos = pos;
+	order->type = type;
+	order->valueInt = valueInt;
+	order->valueDouble = valueDouble;
+	order->status = status;
+}
+
+
+cJSON *ft_order_get_next(t_car_basic *carInfo, t_order *orders)
+{
+	cJSON *msg = NULL;
+	t_order *ptr = NULL;
+	int i;
+	double newSpeed = 0; /* 0 to 1 values */
+
+	if (orders == NULL)
+		return NULL;
+
+	/* find order */
+	for (i = 0; i < MAX_ORDERS; ++i)
+	{
+		/* if current order is ok for : pos and status */
+		if (orders[i].pos - carInfo->pos < 0.05 && orders[i].status == ORDER_STATUS_ENABLED)
+		{
+			ptr = &orders[i];
+			ptr->status = ORDER_STATUS_SENDED;
+			break;
+		}
+	}
+
+	/* if order is found, handle it */
+	if (ptr != NULL && ptr->type == ORDER_TYPE_SPEED)
+		carInfo->speedWanted = ptr->valueDouble;
+	
+	/* speed or switch lane - default == speed */
+	if (ptr != NULL && ptr->type == ORDER_TYPE_SWITCH)
+	{
+		if (ptr->valueInt == ORDER_SWITCH_RIGHT)
+			msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\t\t\tswitch right\n");
+		if (ptr->valueInt == ORDER_SWITCH_LEFT)
+			msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\t\t\tswitch left\n");
+	}
+	else
+	{
+		if (my_abs(carInfo->speedActual - carInfo->speedWanted) > 0.10) /* big diff, extrem values */
+		{
+			if (carInfo->speedActual > carInfo->speedWanted) /* 0 to 10 values */
+				newSpeed = 0;
+			else
+				newSpeed = 1;
+		}
+		else
+			newSpeed = carInfo->speedWanted/10;
+
+		msg = throttle_msg(newSpeed), printf("\t\t\t\tspeed %.2f -> %.2f\n", newSpeed, carInfo->speedWanted/10);
+	}
+
+	return msg;
+}
 

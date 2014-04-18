@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-18 14:10:41
+* @Last Modified time: 2014-04-18 14:14:29
 */
 
 #include "ft_utils.h"
@@ -160,6 +160,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 					break;
 				}
 			}
+			fclose(f);
 		}
 		else /* guess */
 		{

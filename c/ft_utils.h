@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-18 20:32:35
+* @Last Modified time: 2014-04-18 21:28:03
 */
 
 #ifndef FT_UTILS_H
@@ -47,18 +47,19 @@ angle :
 
 /*
 	maximum speed in curve, if the car crash, decrease. (unit : between 0 and 10)
+	6.2 for 100-radius curves - 4 for 50-radius curves
 */
-#define SPEED_CURVE_HARD			4	/* 6.2 for 100-radius curves */
+#define SPEED_CURVE_HARD			3.7
 /*
 			edit : nope -- distance used to slow down, per speed unit. (unit : pieceIndex) --
 	if the car crash engage the curve to quickly, decrease.
 */
-#define SPEED_LOST_PER_TRACK_PIECE	1.9
+#define SPEED_LOST_PER_TRACK_PIECE	2.0
 /*
 	Send order SEND_ORDER_OFFSET (unit : pieceIndex) before the car reach the asked pos
 	if the car apply order too late, increase 
 */
-#define SEND_ORDER_OFFSET			0.60
+#define SEND_ORDER_OFFSET			0.50
 /*
 	All curves with angle below this are seen as right
 */
@@ -66,7 +67,7 @@ angle :
 /*
 	diff between current and wanted speed within the speed order are none (0) or full (1)
 */
-#define SPEED_DIFF_EXTREM_VALUES	0.10
+#define SPEED_DIFF_EXTREM_VALUES	0.20
 
 
 /**********
@@ -81,7 +82,8 @@ enum e_piece_parse
 enum e_piece_type
 {
 	PIECE_TYPE_RIGHT,
-	PIECE_TYPE_CURVE
+	PIECE_TYPE_CURVE_LIGHT,
+	PIECE_TYPE_CURVE_HARD
 };
 
 enum e_order_type
@@ -112,6 +114,7 @@ typedef struct		s_track_piece
 	int				type;
 	double 			length;
 	int				angle;
+	int				isSwitch;
 }					t_track_piece;
 
 typedef struct		s_track_info
@@ -135,6 +138,7 @@ typedef struct		s_car_basic
 #define MAX_ORDERS	100
 typedef struct		s_order
 {
+	double			pos;
 	int				type;
 	int				valueInt;
 	double			valueDouble;
@@ -158,7 +162,7 @@ void ft_utils_track_parse(cJSON *data, t_track_info *track);
 void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour);
 void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders);
 void ft_order_reenable(t_order *orders);
-void ft_order_add(t_order *order, int type, int valueInt, double valueDouble, int status);
+void ft_order_add(t_order *order, double pos, int type, int valueInt, double valueDouble, int status);
 cJSON *ft_order_get_next(t_car_basic *carInfo, t_order *orders);
 
 

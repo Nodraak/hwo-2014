@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-18 20:31:57
+* @Last Modified time: 2014-04-18 21:21:43
 */
 
 #include "ft_utils.h"
@@ -98,7 +98,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 
 		ft_utils_track_parse(data, trackInfo);
 
-		printf("Track : (right=%d curve=%d)\n", PIECE_TYPE_RIGHT, PIECE_TYPE_CURVE);
+		printf("Track : (right=%d curveLight=%d curveHard=%d)\n", PIECE_TYPE_RIGHT, PIECE_TYPE_CURVE_LIGHT, PIECE_TYPE_CURVE_HARD);
 		for (i = 0; i < trackInfo->nbElem; ++i)
 			printf("%d - type=%d length%.3f radius=%d\n",
 				i, trackInfo->pieces[i].type , trackInfo->pieces[i].length , trackInfo->pieces[i].angle);
@@ -111,7 +111,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 		printf("Orders : (type : speed=%d switch=%d) (switch : left=%d right=%d)\n",
 			ORDER_TYPE_SPEED, ORDER_TYPE_SWITCH, ORDER_SWITCH_LEFT, ORDER_SWITCH_RIGHT);
 		for (i = 0; orders[i].status != ORDER_STATUS_DISABLED; ++i)
-			printf("pieceIndex=%d\ttype=%d\tvalueD=%.1f\tvalueI=%d\n", i, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
+			printf("pos=%.3f\ttype=%d\tvalueD=%.1f\tvalueI=%d\n", orders[i].pos, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
 		printf("\n");
 	}
 	else if (strcmp(msgType, "gameStart") == 0)
@@ -120,7 +120,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 	}
 	else if (strcmp(msgType, "carPositions") == 0)
 	{
-		if (tick % PRINT_CAR_POS_MODULO == 0)
+		if (tick % PRINT_CAR_POS_MODULO == 0 && tick != 0)
 			ft_utils_data_raw_print("CAR POS", json);
 
 		ft_update_car_data(data, all, trackInfo);
@@ -278,7 +278,7 @@ void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour)
 		while (current != NULL)
 		{
 			cJSON *piece = current->child;
-			int len = 0, radius = 0, angle = 0;
+			int len = 0, radius = 0, angle = 0, isSwitch = 0;
 
 			while (piece != NULL)
 			{
@@ -288,6 +288,8 @@ void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour)
 					radius = piece->valueint;
 				else if (strcmp(piece->string, "angle") == 0)
 					angle = piece->valueint;
+				else if (strcmp(piece->string, "switch") == 0)
+					isSwitch = 1;
 
 				piece = piece->next;
 			}
@@ -299,13 +301,15 @@ void ft_utils_piece_parse(cJSON *current, t_track_info *data, int behaviour)
 			}
 			else
 			{
-				if (my_abs(angle) > ANGLE_CONSIDERED_AS_RIGHT)
-					data->pieces[data->nbElem].type = PIECE_TYPE_CURVE;
+				if (my_abs(angle) < ANGLE_CONSIDERED_AS_RIGHT)
+					data->pieces[data->nbElem].type = PIECE_TYPE_CURVE_LIGHT;
 				else
-					data->pieces[data->nbElem].type = PIECE_TYPE_RIGHT;
+					data->pieces[data->nbElem].type = PIECE_TYPE_CURVE_HARD;
+
 				data->pieces[data->nbElem].length = (double)2 * M_PI * radius * abs(angle) / 360;
-				data->pieces[data->nbElem].angle = my_abs(angle);
+				data->pieces[data->nbElem].angle = angle;
 			}
+			data->pieces[data->nbElem].isSwitch = isSwitch;
 
 			data->nbElem ++;
 			current = current->next;
@@ -324,15 +328,15 @@ void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders)
 	for (idTrack = 0; idTrack < trackInfo->nbElem; ++idTrack)
 	{
 		/* curve : slow down */
-		if (trackInfo->pieces[idTrack].type == PIECE_TYPE_CURVE)
+		if (trackInfo->pieces[idTrack].type != PIECE_TYPE_RIGHT)
 		{
-			ft_order_add(&orders[idOrder], ORDER_TYPE_SPEED, 0, SPEED_CURVE_HARD, ORDER_STATUS_ENABLED);
+			ft_order_add(&orders[idOrder], idOrder, ORDER_TYPE_SPEED, 0, SPEED_CURVE_HARD, ORDER_STATUS_ENABLED);
 			idOrder++;
 		}
 		/* right piece : accelerate */
 		else
 		{
-			ft_order_add(&orders[idOrder], ORDER_TYPE_SPEED, 0, 10, ORDER_STATUS_ENABLED);
+			ft_order_add(&orders[idOrder], idOrder, ORDER_TYPE_SPEED, 0, 10, ORDER_STATUS_ENABLED);
 			idOrder++;
 		}
 	}
@@ -342,7 +346,7 @@ void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders)
 	for (i = 0+1; i < nbOrder; ++i)
 	{
 		/* if right and curve before, increase before's speed */
-		if (trackInfo->pieces[i].type == PIECE_TYPE_RIGHT && trackInfo->pieces[i-1].type == PIECE_TYPE_CURVE)
+		if (trackInfo->pieces[i].type == PIECE_TYPE_RIGHT && trackInfo->pieces[i-1].type != PIECE_TYPE_RIGHT)
 			orders[i-1].valueDouble = 10;
 	}
 
@@ -360,15 +364,46 @@ void ft_utils_order_compute(t_track_info *trackInfo, t_order *orders)
 	/*****************
 	 *  SWITCH LANE  *
 	 *****************/
-	
+	i = nbOrder;
+	/* note on curve : left = neg | right = pos */
+	int nbCurves = 0, idActualSwitch = 0, idCurrentPiece = 0;
 
+	/* find first switch */
+	while (trackInfo->pieces[idActualSwitch].isSwitch == 0)
+		idActualSwitch ++;
+	idCurrentPiece = idActualSwitch;
 
+	/* set switch orders */
+	while (idCurrentPiece <= 39)
+	{
+		nbCurves = 0;
 
+		do {
+			idCurrentPiece ++;
 
+			if (trackInfo->pieces[idCurrentPiece].type != PIECE_TYPE_RIGHT)
+			{
+				if (trackInfo->pieces[idCurrentPiece].angle < 0)
+					nbCurves --;
+				else
+					nbCurves ++;
+			}
+		} while (idCurrentPiece <= 39 && trackInfo->pieces[idCurrentPiece].isSwitch == 0);
+
+		if (idCurrentPiece <= 39)
+		{
+			int order = nbCurves < 0 ? ORDER_SWITCH_LEFT : ORDER_SWITCH_RIGHT;
+
+			ft_order_add(&orders[i], idActualSwitch-0.5, ORDER_TYPE_SWITCH, order, 0, ORDER_STATUS_ENABLED);
+			i ++;
+			idActualSwitch = idCurrentPiece;
+		}
+	}
+	nbOrder = i;
 
 	/* disable unused slots - TODO : malloc only needed memory */
 	for (i = nbOrder; i < MAX_ORDERS; ++i)
-		ft_order_add(&orders[i], 0, 0, 0, ORDER_STATUS_DISABLED);
+		ft_order_add(&orders[i], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
 }
 
 void ft_order_reenable(t_order *orders)
@@ -383,8 +418,9 @@ void ft_order_reenable(t_order *orders)
 }
 
 
-void ft_order_add(t_order *order, int type, int valueInt, double valueDouble, int status)
+void ft_order_add(t_order *order, double pos, int type, int valueInt, double valueDouble, int status)
 {
+	order->pos = pos;
 	order->type = type;
 	order->valueInt = valueInt;
 	order->valueDouble = valueDouble;
@@ -406,7 +442,7 @@ cJSON *ft_order_get_next(t_car_basic *carInfo, t_order *orders)
 	for (i = 0; i < MAX_ORDERS; ++i)
 	{
 		/* if current order is ok for : pos and status */
-		if (carInfo->pos + SEND_ORDER_OFFSET >= i && orders[i].status == ORDER_STATUS_ENABLED)
+		if (carInfo->pos + SEND_ORDER_OFFSET >= orders[i].pos && orders[i].status == ORDER_STATUS_ENABLED)
 		{
 			ptr = &orders[i];
 			ptr->status = ORDER_STATUS_SENDED;
@@ -415,34 +451,37 @@ cJSON *ft_order_get_next(t_car_basic *carInfo, t_order *orders)
 	}
 
 	/* if order is found, handle it */
-	if (ptr != NULL && ptr->type == ORDER_TYPE_SPEED)
-		carInfo->speedWanted = ptr->valueDouble;
+	if (ptr != NULL)
+	{
+		if (ptr->type == ORDER_TYPE_SPEED)
+			carInfo->speedWanted = ptr->valueDouble;
 	
-	/* speed or switch lane - default == speed */
-	if (ptr != NULL && ptr->type == ORDER_TYPE_SWITCH)
-	{
-		if (ptr->valueInt == ORDER_SWITCH_RIGHT)
-			msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\torder switch right");
-		if (ptr->valueInt == ORDER_SWITCH_LEFT)
-			msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\torder switch left");
-	}
-	else
-	{
-		if (my_abs(carInfo->speedActual - carInfo->speedWanted) > SPEED_DIFF_EXTREM_VALUES) /* big diff, extrem values */
+		/* speed or switch lane - default == speed */
+		if (ptr->type == ORDER_TYPE_SWITCH)
 		{
-			if (carInfo->speedActual > carInfo->speedWanted) /* 0 to 10 values */
-				newSpeed = 0;
+			if (ptr->valueInt == ORDER_SWITCH_RIGHT)
+				msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\torder switch right");
 			else
-				newSpeed = 1;
+				msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\torder switch left");
 		}
-		else
-			newSpeed = carInfo->speedWanted/10;
+		else if (ptr->type == ORDER_TYPE_SPEED)
+		{
+			if (my_abs(carInfo->speedActual - carInfo->speedWanted) > SPEED_DIFF_EXTREM_VALUES) /* big diff, extrem values */
+			{
+				if (carInfo->speedActual > carInfo->speedWanted) /* 0 to 10 values */
+					newSpeed = 0;
+				else
+					newSpeed = 1;
+			}
+			else
+				newSpeed = carInfo->speedWanted/10;
 
-		/* if angle > 50 and order to increase speed, dont order anything */
-		if (my_abs(carInfo->angle) > 50 &&  carInfo->speedWanted > carInfo->speedActual)
-			return NULL;
-
-		msg = throttle_msg(newSpeed), printf("\t\torder %.2f -> %.2f", newSpeed, carInfo->speedWanted/10);
+			/* if angle > 50 and order to increase speed, dont order anything */
+			if (my_abs(carInfo->angle) > 50 &&  carInfo->speedWanted > carInfo->speedActual)
+				return NULL;
+			else
+				msg = throttle_msg(newSpeed), printf("\t\torder %.2f -> %.2f", newSpeed, carInfo->speedWanted/10);
+		}
 	}
 
 	return msg;

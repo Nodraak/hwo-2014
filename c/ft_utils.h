@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-19 12:10:35
+* @Last Modified time: 2014-04-19 18:43:25
 */
 
 #ifndef FT_UTILS_H
@@ -25,7 +25,7 @@
 void ft_main_loop(int sock);
 void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo, t_order *orders);
 
-void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo);
+void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo, t_order *orders);
 
 void ft_utils_data_raw_print(char *type, cJSON *data);
 cJSON *ft_utils_field_find(char *s, cJSON* head);

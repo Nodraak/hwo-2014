@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-19 12:33:59
+* @Last Modified time: 2014-04-19 19:19:33
 */
 
 #ifndef CONSTANTES_H
@@ -19,9 +19,13 @@
 /*
 	name of the track to join - define one and only one
 */
-#define TRACK_NAME					"keimola"
-/*#define TRACK_NAME					"germany"*/
+#define ID_TRACK						2
 
+#if (ID_TRACK == 1)
+	#define TRACK_NAME					"keimola"
+#elif (ID_TRACK == 2)
+	#define TRACK_NAME					"germany"
+#endif
 /*
 	number of player for the game
 */
@@ -33,6 +37,7 @@
 */
 #define PRINT_CAR_POS_MODULO		3000
 
+
 /*************
  *  DEFINES  *		note : EDIT AT YOUR OWN RISK
  *************/
@@ -40,22 +45,22 @@
 /*
 	maximum speed in curve, if the car crash, decrease. (unit : between 0 and 10)
 */
-#define SPEED_CURVE_RADIUS_0		1
-#define SPEED_CURVE_RADIUS_50		3.8
-#define SPEED_CURVE_RADIUS_100		6.2
+#define SPEED_CURVE_RADIUS_0		2
+#define SPEED_CURVE_RADIUS_50		4
+#define SPEED_CURVE_RADIUS_100		6
 #define SPEED_CURVE_RADIUS_150		8
 
 /*
 	when slowing down, speed diff per each track piece
 	if the car crash engage the curve to quickly, decrease.
 */
-#define SPEED_LOST_PER_TRACK_PIECE	2.0
+#define SPEED_LOST_PER_TRACK_PIECE	2
 
 /*
 	Send order SEND_ORDER_OFFSET (unit : pieceIndex) before the car reach the asked pos
 	if the car applys order too late, increase 
 */
-#define SEND_ORDER_OFFSET			0.50
+#define SEND_ORDER_OFFSET			0.0
 
 /*
 	All curves with angle below this are seen as right
@@ -76,31 +81,31 @@
  *  ENUM  *
  **********/
 
-enum e_piece_type
+typedef enum	e_piece_type
 {
 	PIECE_TYPE_RIGHT,
 	PIECE_TYPE_CURVE_LIGHT,
 	PIECE_TYPE_CURVE_HARD
-};
+}				t_piece_type;
 
-enum e_order_type
+typedef enum	e_order_type
 {
 	ORDER_TYPE_SPEED,
 	ORDER_TYPE_SWITCH
-};
+}				t_order_type;
 
-enum e_order_status
+typedef enum	e_order_status
 {
 	ORDER_STATUS_ENABLED,
 	ORDER_STATUS_DISABLED,
 	ORDER_STATUS_SENDED
-};
+}				t_order_status;
 
-enum e_switch_type
+typedef enum	e_switch_type
 {
 	ORDER_SWITCH_RIGHT,
 	ORDER_SWITCH_LEFT
-};
+}				t_switch_type;
 
 
 /*************
@@ -108,11 +113,14 @@ enum e_switch_type
  *************/
 typedef struct		s_track_piece
 {
-	int				type;
+	/* pre-computed */
+	t_piece_type	type;
 	double 			length;
 	int				angle;
 	int				radius;
 	int				isSwitch;
+	/* live-computed */
+	int				maxAngle;
 }					t_track_piece;
 
 typedef struct		s_track_info
@@ -125,22 +133,24 @@ typedef struct		s_track_info
 typedef struct		s_car_basic
 {
 	double			pos;
+	int				lap;
 
 	int				pieceIndex;
 	double			inPieceDistance;
 	double			speedActual;
 	double			speedWanted;
+	double			lastSpeedOrder;
 	double			angle;
 }					t_car_basic;
 
-#define MAX_ORDERS	100 /* TODO : malloc this stuff */
+#define MAX_ORDERS	200 /* TODO : malloc this stuff */
 typedef struct		s_order
 {
 	double			pos;
-	int				type;
+	t_order_type	type;
 	int				valueInt;
 	double			valueDouble;
-	int				status;
+	t_order_status	status;
 }					t_order;
 
 #endif /* CONSTANTES_H */

@@ -10,11 +10,11 @@ source ../config
 
 
 #SERVER="testserver"
-#SERVER="hakkinen"
-SERVER="webber"
+SERVER="hakkinen"
+#SERVER="webber"
 
 
-time ./run $SERVER.helloworldopen.com 8091 Nodraak ey8JSibC+rMZ0w
+./run $SERVER.helloworldopen.com 8091 Nodraak ey8JSibC+rMZ0w
 
 
 

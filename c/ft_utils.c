@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-19 12:49:29
+* @Last Modified time: 2014-04-19 19:25:58
 */
 
 #include "ft_utils.h"
@@ -16,17 +16,20 @@ void ft_main_loop(int sock)
 	cJSON *json = NULL;
 	cJSON *msg = NULL, *msg_type = NULL;
 	char *msg_type_name = NULL;
-	t_car_basic all = {0, 0, 0, 0, 0, 0};
+	t_car_basic *all = NULL;
 	t_track_info *trackInfo = NULL;
 	t_order *orders = NULL;
 	int isRaceStarted = 0;
 
 	/* init */
-	orders = calloc(MAX_ORDERS, sizeof(t_order));
-	if (orders == NULL)
+	all = calloc(1, sizeof(t_car_basic));
+	if (all == NULL)
 		error("Error malloc %d %s\n", __LINE__, __FILE__);
 	trackInfo = calloc(1, sizeof(t_track_info));
 	if (trackInfo == NULL)
+		error("Error malloc %d %s\n", __LINE__, __FILE__);
+	orders = calloc(MAX_ORDERS, sizeof(t_order));
+	if (orders == NULL)
 		error("Error malloc %d %s\n", __LINE__, __FILE__);
 
 	/* main loop */
@@ -37,18 +40,25 @@ void ft_main_loop(int sock)
 		if (msg_type == NULL)
 			error("missing msgType field");
 
-		ft_utils_data_parse(json, &all, trackInfo, orders);
+		ft_utils_data_parse(json, all, trackInfo, orders);
 
 		/* prepare response */
 		msg_type_name = msg_type->valuestring;
-		if (strcmp("gameStart", msg_type_name) == 0)
+		if (strcmp("gameInit", msg_type_name) == 0)
+		{
+			msg = throttle_msg(1);
+			printf("--> order initial speed : 1 (gameInit)\n");
+		}
+		else if (strcmp("gameStart", msg_type_name) == 0)
 		{
 			isRaceStarted = 1;
+			msg = throttle_msg(1);
+			printf("--> order initial speed : 1 (gameStart)\n");
 		}
 		else if (strcmp("carPositions", msg_type_name) == 0)
 		{
-			if (isRaceStarted)
-				msg = ft_orders_next_get(&all, orders);
+			if (isRaceStarted && msg == NULL)
+				msg = ft_orders_next_get(all, orders);
 		}
 
 		/* send data */
@@ -62,7 +72,13 @@ void ft_main_loop(int sock)
 		printf("\n"); /* flush all output for this loop / game tick */
 	}
 
-	printf("Read null msg, quitting ...\n");
+	printf("Read null msg, cleaning and quitting ...\n");
+
+	free(trackInfo->pieces);
+
+	free(all);
+	free(trackInfo);
+	free(orders);
 }
 
 
@@ -71,61 +87,117 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 {
 	cJSON *data = NULL;
 	char *msgType = NULL;
-	int tick = -1;
+	int tick = -1, i;
 
 	data = cJSON_GetObjectItem(json, "gameTick");
 	if (data)
 		tick = data->valueint;
-	printf("tick=%d", tick);
 
 	msgType = cJSON_GetObjectItem(json, "msgType")->valuestring;
 	data = cJSON_GetObjectItem(json, "data");
 
 	if (strcmp(msgType, "gameInit") == 0)
 	{
-		int i;
-
 		/* analyse track */
 		ft_orders_track_parse(data, trackInfo);
 		ft_orders_compute(trackInfo, orders);
+#if 0
+		/* load from file */
++		if (name != NULL && strcmp(name->valuestring, "Keimola") == 0)
++		{
++			FILE *f = NULL;
++			int valueInt, idOrder = 0, orderType;
++			double pos, valueDouble;
++
++			printf("Info : knowned race, loading file ...\n");
++			f = fopen("raceData/Keimola.txt", "r");
++			if (f == NULL)
++				error("Error fopen %d %s\n", __LINE__, __FILE__);
++			while (!feof(f))
++			{
++				int ret = fscanf(f, "%lf\t%d\t%lf\t%d", &pos, &orderType, &valueDouble, &valueInt);
++				if (ret == 4)
++				{
++					ft_order_add(&orders[idOrder], pos, orderType, valueInt, valueDouble, ORDER_STATUS_ENABLED);
++					idOrder++;
++				}
++				else
++				{
++					while (idOrder < MAX_ORDERS)
++					{
++						ft_order_add(&orders[idOrder], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
++						idOrder++;
++					}
++					break;
++				}
++			}
++		}
++		else /* guess */
+#endif
 
 		/* printf for debug */
 		ft_utils_data_raw_print("GAME INIT", json);
 
 		printf("Track : (right=%d curveLight=%d curveHard=%d)\n",
 			PIECE_TYPE_RIGHT, PIECE_TYPE_CURVE_LIGHT, PIECE_TYPE_CURVE_HARD);
+		printf("i\ttype\tlen\tangle\n");
 		for (i = 0; i < trackInfo->nbElem; ++i)
-			printf("%d\ttype=%d\tlength%.3f\tradius=%d\n",
+			printf("%d\t%d\t%.1f\t%d\n",
 				i, trackInfo->pieces[i].type , trackInfo->pieces[i].length , trackInfo->pieces[i].angle);
 		printf("\n");
 
 		printf("Orders : (type : speed=%d switch=%d) (switch : left=%d right=%d)\n",
 			ORDER_TYPE_SPEED, ORDER_TYPE_SWITCH, ORDER_SWITCH_LEFT, ORDER_SWITCH_RIGHT);
+		printf("pos\ttype\tspeed\tswitch\n");
 		for (i = 0; orders[i].status != ORDER_STATUS_DISABLED; ++i)
-			printf("pos=%.3f\ttype=%d\tvalueD=%.1f\tvalueI=%d\n",
+			printf("%.1f\t%d\t%.1f\t%d\n",
 				orders[i].pos, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
 		printf("\n");
 	}
 	else if (strcmp(msgType, "carPositions") == 0)
 	{
-		ft_update_car_data(data, all, trackInfo);
+		ft_update_car_data(data, all, trackInfo, orders);
 
 		/* printf for debug */
 		if (tick % PRINT_CAR_POS_MODULO == 0 && tick != -1)
 			ft_utils_data_raw_print("CAR POS", json);
-
-		printf("\t\tpos=%3.2f spe=%2.2f ang=%2.1f",
-			all->pos, all->speedActual, all->angle);
 	}
 	else if (strcmp(msgType, "lapFinished") == 0)
 	{
 		ft_utils_data_raw_print("NEW LAP", json);
 		ft_orders_reenable(orders);
+		all->lap++;
+
+		printf("maxAngle data :\n");
+		for (i = 0; i < trackInfo->nbElem; ++i)
+		{
+			if (trackInfo->pieces[i].type == PIECE_TYPE_RIGHT)
+				printf("   %d\n", trackInfo->pieces[i].maxAngle);
+			else
+				printf("%d %d\n", i, trackInfo->pieces[i].maxAngle);
+		}
+		printf("speed orders :\npos\tspeed\n");
+		for (i = 0; orders[i].type == ORDER_TYPE_SPEED; ++i)
+			printf("%.3f\t%.1f\n",
+				orders[i].pos, orders[i].valueDouble);
+
+		printf("\a\a\a\a\a\n");
+	}
+	else if (strcmp(msgType, "spawn") == 0)
+	{
+		all->speedWanted = SPEED_CURVE_RADIUS_100;
+		/* TODO */
 	}
 	else
 	{
 		ft_utils_data_raw_print(msgType, json);
 	}
+
+	/* printf for debug */
+	if (tick % 20 == 0)
+		printf("gameTicks\tpos\tspeed\twanted\tangle\n");
+	if (tick != -1)
+		printf("%d\t\t%.1f\t%.1f\t%.1f\t%.1f", tick, all->pos, all->speedActual, all->speedWanted, all->angle);
 }
 
 
@@ -133,11 +205,13 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
  *  UPDATE DATA  *
  *****************/
 
-void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo)
+void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo, t_order *orders)
 {
 	cJSON *ret = NULL;
-	static double old = 0;
-	double speed;
+	double speed, AngleDiff;
+	static double oldInPieceDistance = 0, oldAngle = 0;
+	int haveOrderInNextTwoPieces = 0, i;
+	int action = 0;
 
 	/* pieceIndex */
 	ret = ft_utils_field_find("pieceIndex", data);
@@ -157,14 +231,68 @@ void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo)
 		exit(47);
 	all->angle = ret->valuedouble;
 
+	/* update max angle if not first lap */
+	if (all->lap >= 1 && ft_abs(all->angle) > trackInfo->pieces[(int)all->pos].maxAngle)
+		trackInfo->pieces[(int)all->pos].maxAngle = ft_abs(all->angle);
+
 	/* speed */
-	speed = all->inPieceDistance - old;
-	old = all->inPieceDistance;
+	speed = all->inPieceDistance - oldInPieceDistance;
 	
 	if (speed > 0)
 		all->speedActual = speed;
 
 	all->pos = all->pieceIndex + all->inPieceDistance / trackInfo->pieces[all->pieceIndex].length;
+
+
+
+	/*=== check for speed - if on a bend ===*/
+	/* TODO add order insted of hard coded speed order */
+
+
+	speed = all->speedActual;
+	AngleDiff = ft_abs(all->angle) - ft_abs(oldAngle);
+
+	/* slow down */
+	if (trackInfo->pieces[(int)all->pos].type != PIECE_TYPE_RIGHT)
+	{
+		if (ft_abs(AngleDiff) > 5)
+			all->speedWanted = 0, action = 1;
+
+		if (ft_abs(all->angle) > 50)
+			all->speedWanted = all->speedActual - 1, action = 1;
+	}
+	/* accelerate */
+	if (trackInfo->pieces[(int)all->pos+1].type == PIECE_TYPE_RIGHT)
+	{
+		if (AngleDiff < 0)
+			all->speedWanted = all->speedActual + 1, action = 1;
+	}
+
+	if (action)
+	{
+		/* set back */
+		haveOrderInNextTwoPieces = 0;
+		for (i = 0; i < MAX_ORDERS; ++i)
+		{
+			if (orders[i].status == ORDER_STATUS_ENABLED)
+			{
+				double posDiff = orders[i].pos - all->pos;
+				if (posDiff > 0 && posDiff < 1)
+					haveOrderInNextTwoPieces = 1;
+			}
+		}
+		if (haveOrderInNextTwoPieces == 0)
+		{
+			int idOrderFree = 0;
+			while (orders[idOrderFree].status != ORDER_STATUS_DISABLED)
+				idOrderFree ++;
+			ft_orders_add(&orders[idOrderFree], all->pos + 1, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
+		}
+	}
+
+
+	oldInPieceDistance = all->inPieceDistance;
+	oldAngle = all->angle;
 }
 
 /***********
@@ -174,7 +302,7 @@ void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo)
 void ft_utils_data_raw_print(char *type, cJSON *data)
 {
 	char *s = cJSON_Print(data);
-	printf("==> %s\n%s\n\n", type, s);
+	printf("\n==> %s\n%s\n", type, s);
 	free(s);
 }
 

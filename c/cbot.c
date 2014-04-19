@@ -106,13 +106,17 @@ cJSON *join_msg(char *bot_name, char *bot_key)
 {
     cJSON *botId = cJSON_CreateObject();
     cJSON *data = cJSON_CreateObject();
+
+#ifndef TRACK_NAME
+    #error a track name must be defined
+#endif
+
     cJSON_AddStringToObject(botId, "name", bot_name);
     cJSON_AddStringToObject(botId, "key", bot_key);
     cJSON_AddItemToObject(data, "botId", botId);
     cJSON_AddNumberToObject(data, "carCount", NB_PLAYER);
-#ifdef TRACK_NAME
     cJSON_AddStringToObject(data, "trackName", TRACK_NAME);
-#endif
+
     return make_msg("joinRace", data);
 }
 

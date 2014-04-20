@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:54:25
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 18:50:04
+* @Last Modified time: 2014-04-20 18:57:33
 */
 
 #ifndef FT_ORDERS_H
@@ -33,7 +33,7 @@ double ft_orders_max_speed_get(t_track_piece *pieces, int id);
 
 
 int ft_orders_compute_speed(t_order *orders, t_track_info *trackInfo);
-void ft_orders_compute_switch(t_order *orders, int nbOrder);
+int ft_orders_compute_switch(t_order *orders, int nbOrder, t_track_info *trackInfo);
 void ft_orders_compute(t_track_info *trackInfo, t_order *orders);
 
 void ft_orders_reenable(t_order *orders);

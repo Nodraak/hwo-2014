@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 18:49:51
+* @Last Modified time: 2014-04-20 18:57:33
 */
 
 #include "ft_orders.h"
@@ -224,7 +224,7 @@ int ft_orders_compute_speed(t_order *orders, t_track_info *trackInfo)
 	return nbOrder;
 }
 
-void ft_orders_compute_switch(t_order *orders, int nbOrder)
+int ft_orders_compute_switch(t_order *orders, int nbOrder, t_track_info *trackInfo)
 {
 	int nbCurves = 0, idActualSwitch = 0, idCurrentPiece = 0, i;
 
@@ -262,14 +262,15 @@ void ft_orders_compute_switch(t_order *orders, int nbOrder)
 			idActualSwitch = idCurrentPiece;
 		}
 	}
-	nbOrder = i;
+	return i;
+}
 
 void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
 {
 	int nbOrder = 0, i;
 
 	nbOrder = ft_orders_compute_speed(orders, trackInfo);
-	ft_orders_compute_switch(orders, nbOrder);
+	nbOrder = ft_orders_compute_switch(orders, nbOrder, trackInfo);
 
 	/* disable unused slots - TODO : malloc only needed memory */
 	for (i = nbOrder; i < MAX_ORDERS; ++i)

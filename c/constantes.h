@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-19 19:19:33
+* @Last Modified time: 2014-04-20 11:19:33
 */
 
 #ifndef CONSTANTES_H
@@ -19,12 +19,14 @@
 /*
 	name of the track to join - define one and only one
 */
-#define ID_TRACK						2
+#define ID_TRACK						3
 
 #if (ID_TRACK == 1)
 	#define TRACK_NAME					"keimola"
 #elif (ID_TRACK == 2)
 	#define TRACK_NAME					"germany"
+#elif (ID_TRACK == 3)
+	#define TRACK_NAME					"usa"
 #endif
 /*
 	number of player for the game
@@ -46,9 +48,10 @@
 	maximum speed in curve, if the car crash, decrease. (unit : between 0 and 10)
 */
 #define SPEED_CURVE_RADIUS_0		2
-#define SPEED_CURVE_RADIUS_50		4
+#define SPEED_CURVE_RADIUS_50		3.8
 #define SPEED_CURVE_RADIUS_100		6
 #define SPEED_CURVE_RADIUS_150		8
+#define SPEED_CURVE_RADIUS_200		9
 
 /*
 	when slowing down, speed diff per each track piece
@@ -61,11 +64,6 @@
 	if the car applys order too late, increase 
 */
 #define SEND_ORDER_OFFSET			0.0
-
-/*
-	All curves with angle below this are seen as right
-*/
-#define ANGLE_CONSIDERED_AS_RIGHT	30
 
 /*
 	diff between current and wanted speed within the speed order are none (0) or full (1)
@@ -84,8 +82,7 @@
 typedef enum	e_piece_type
 {
 	PIECE_TYPE_RIGHT,
-	PIECE_TYPE_CURVE_LIGHT,
-	PIECE_TYPE_CURVE_HARD
+	PIECE_TYPE_CURVE
 }				t_piece_type;
 
 typedef enum	e_order_type

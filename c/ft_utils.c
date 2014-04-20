@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-19 19:25:58
+* @Last Modified time: 2014-04-20 11:15:41
 */
 
 #include "ft_utils.h"
@@ -138,8 +138,8 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 		/* printf for debug */
 		ft_utils_data_raw_print("GAME INIT", json);
 
-		printf("Track : (right=%d curveLight=%d curveHard=%d)\n",
-			PIECE_TYPE_RIGHT, PIECE_TYPE_CURVE_LIGHT, PIECE_TYPE_CURVE_HARD);
+		printf("Track : (right=%d curve=%d)\n",
+			PIECE_TYPE_RIGHT, PIECE_TYPE_CURVE);
 		printf("i\ttype\tlen\tangle\n");
 		for (i = 0; i < trackInfo->nbElem; ++i)
 			printf("%d\t%d\t%.1f\t%d\n",
@@ -195,7 +195,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 
 	/* printf for debug */
 	if (tick % 20 == 0)
-		printf("gameTicks\tpos\tspeed\twanted\tangle\n");
+		printf("gameTicks\tpos\tspeed\twanted\tangle\t\torder\n");
 	if (tick != -1)
 		printf("%d\t\t%.1f\t%.1f\t%.1f\t%.1f", tick, all->pos, all->speedActual, all->speedWanted, all->angle);
 }
@@ -249,6 +249,7 @@ void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo, 
 	/* TODO add order insted of hard coded speed order */
 
 
+#if 0
 	speed = all->speedActual;
 	AngleDiff = ft_abs(all->angle) - ft_abs(oldAngle);
 
@@ -290,6 +291,7 @@ void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo, 
 		}
 	}
 
+#endif
 
 	oldInPieceDistance = all->inPieceDistance;
 	oldAngle = all->angle;

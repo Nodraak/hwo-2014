@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-19 19:26:04
+* @Last Modified time: 2014-04-20 11:18:37
 */
 
 #include "ft_orders.h"
@@ -97,10 +97,7 @@ void ft_orders_piece_parse(cJSON *current, t_track_info *data)
 		}
 		else
 		{
-			if (ft_abs(angle) < ANGLE_CONSIDERED_AS_RIGHT)
-				data->pieces[id].type = PIECE_TYPE_CURVE_LIGHT;
-			else
-				data->pieces[id].type = PIECE_TYPE_CURVE_HARD;
+			data->pieces[id].type = PIECE_TYPE_CURVE;
 
 			data->pieces[id].length = 2.0 * M_PI * radius * ft_abs(angle) / 360;
 			data->pieces[id].angle = angle;
@@ -120,27 +117,38 @@ void ft_orders_piece_parse(cJSON *current, t_track_info *data)
  *  ORDERS COMPUTE  *
  ********************/
 
-double ft_orders_max_speed_get(t_track_piece *piece)
+double ft_orders_max_speed_get(t_track_piece *pieces, int id)
 {
-	double radius = ft_abs(piece->radius);
+	double radius = ft_abs(pieces[id].radius);
 	double ret;
+	int angle = 0, i;
 
-	if (piece->type == PIECE_TYPE_RIGHT)
+	if (pieces[id].type == PIECE_TYPE_RIGHT)
 		ret = 10;
-	else if (radius > 140)
-		ret = SPEED_CURVE_RADIUS_150;
-	else if (radius > 90)
-		ret = SPEED_CURVE_RADIUS_100;
-	else if (radius > 40)
-		ret = SPEED_CURVE_RADIUS_50;
-	else
+	else if (radius < 30)
 		ret = SPEED_CURVE_RADIUS_0;
+	else if (radius < 60)
+		ret = SPEED_CURVE_RADIUS_50;
+	else if (radius < 110)
+		ret = SPEED_CURVE_RADIUS_100;
+	else if (radius < 160)
+		ret = SPEED_CURVE_RADIUS_150;
+	else
+		ret = SPEED_CURVE_RADIUS_200;
 
 	/* if short curve, increase max speed */
-	if (ft_abs(piece->angle) < 40)
-		ret ++;
-	if (ft_abs(piece->angle) < 25)
-		ret ++;
+	angle = pieces[id].angle, i = id+1;
+	while (pieces[i].angle == pieces[id].angle)
+		angle += pieces[i].angle, i++;
+
+	if (ft_abs(angle) < 25) /* 22 for example */
+		ret += 0.5;
+	else if (ft_abs(angle) < 50) /* 45 for example */
+		;
+	else if (ft_abs(angle) < 100) /* 90 for example */
+		ret -= 0.5;
+	else if (ft_abs(angle) < 200) /* 180 for example */
+		ret -= 1.0;
 
 	/* check error */
 	if (ret > 10)
@@ -156,16 +164,6 @@ int ft_orders_is_in_range(double pos, double start, double end)
 	return (pos > start && pos < end);
 }
 
-/* worst function ever, i do know, please dont blame me, it will be soon rewriten */
-int ft_orders_are_pieces_same_type(t_piece_type a, t_piece_type b)
-{
-	if ((a == PIECE_TYPE_RIGHT && b == PIECE_TYPE_RIGHT)
-		|| (a == PIECE_TYPE_CURVE_LIGHT && b == PIECE_TYPE_CURVE_LIGHT)
-		|| (a == PIECE_TYPE_CURVE_HARD && b == PIECE_TYPE_CURVE_HARD))
-		return 1;
-	else
-		return 0;
-}
 
 void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
 {
@@ -181,9 +179,9 @@ void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
 	{
 		/* if there is only 1 piece like the actual (right / curve), dont order anything */
 		if (idTrack < trackInfo->nbElem-1
-			&& ft_orders_are_pieces_same_type(trackInfo->pieces[idTrack].type, trackInfo->pieces[idTrack+1].type))
+			&& trackInfo->pieces[idTrack].type == trackInfo->pieces[idTrack+1].type)
 		{
-			double speed = ft_orders_max_speed_get(&trackInfo->pieces[idTrack]);
+			double speed = ft_orders_max_speed_get(trackInfo->pieces, idTrack);
 
 			/* if the order has not been set yet, set it */
 			if (idTrack == 0 || speed != orders[idOrder-1].valueDouble)
@@ -202,16 +200,14 @@ void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
 		int previous = orders[i-1].pos;
 
 		/* if right and curve before, increase before's speed */
-		if (trackInfo->pieces[current].type == PIECE_TYPE_RIGHT && trackInfo->pieces[previous].type != PIECE_TYPE_RIGHT)
-			orders[i].pos -= 0.5;
-		if (trackInfo->pieces[current].type != PIECE_TYPE_CURVE_HARD && trackInfo->pieces[previous].type == PIECE_TYPE_CURVE_HARD)
+		if (trackInfo->pieces[current].type == PIECE_TYPE_RIGHT && trackInfo->pieces[previous].type == PIECE_TYPE_CURVE)
 			orders[i].pos -= 0.5;
 	}
 
 	/* slow down before the curves */
 	for (i = nbOrder-1; i >= 0; --i)
 	{
-		#define OFFSET 0.3
+		#define OFFSET 0.5
 		double currentPos = orders[i].pos - OFFSET;
 
 		while (ft_orders_is_in_range(currentPos, orders[i-1].pos, orders[i].pos))
@@ -349,9 +345,9 @@ cJSON *ft_orders_next_get(t_car_basic *carInfo, t_order *orders)
 	if (ptr != NULL && ptr->type == ORDER_TYPE_SWITCH)
 	{
 		if (ptr->valueInt == ORDER_SWITCH_RIGHT)
-			msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\torder switch right");
+			msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\tswitch right");
 		else
-			msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\torder switch left");
+			msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\tswitch left");
 	}
 	else
 	{
@@ -374,7 +370,7 @@ cJSON *ft_orders_next_get(t_car_basic *carInfo, t_order *orders)
 		{
 			msg = throttle_msg(newSpeed);
 			carInfo->lastSpeedOrder = newSpeed;
-			printf("\t\torder %.2f -> %.2f", newSpeed, carInfo->speedWanted/10);
+			printf("\t\t%.2f -> %.2f", newSpeed, carInfo->speedWanted/10);
 		}
 	}
 	

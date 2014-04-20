@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 11:18:37
+* @Last Modified time: 2014-04-20 18:49:51
 */
 
 #include "ft_orders.h"
@@ -165,94 +165,71 @@ int ft_orders_is_in_range(double pos, double start, double end)
 }
 
 
-void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
+t_order *ft_get_order_between(t_order *orders, double start, double end)
+{
+	int i;
+
+	for (i = 0; i < MAX_ORDERS; ++i)
+	{
+		if (orders[i].status != ORDER_STATUS_DISABLED
+			&& ft_orders_is_in_range(orders[i].pos, start, end))
+			return &orders[i];
+	}
+
+	return NULL;
+}
+
+int ft_orders_compute_speed(t_order *orders, t_track_info *trackInfo)
 {
 	int idOrder = 0, idTrack = 0, i;
-	int nbOrder;
-	int nbCurves = 0, idActualSwitch = 0, idCurrentPiece = 0;
-	int sortDone = 0;
+	int nbOrder = 0;
 
-	/***********
-	 *  SPEED  *
-	 ***********/
 	for (idTrack = 0; idTrack < trackInfo->nbElem; ++idTrack)
 	{
-		/* if there is only 1 piece like the actual (right / curve), dont order anything */
-		if (idTrack < trackInfo->nbElem-1
-			&& trackInfo->pieces[idTrack].type == trackInfo->pieces[idTrack+1].type)
-		{
-			double speed = ft_orders_max_speed_get(trackInfo->pieces, idTrack);
+		double speed = ft_orders_max_speed_get(trackInfo->pieces, idTrack);
 
-			/* if the order has not been set yet, set it */
-			if (idTrack == 0 || speed != orders[idOrder-1].valueDouble)
-			{
-				ft_orders_add(&orders[idOrder], idTrack, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
-				idOrder ++;
-			}
-		}
+		ft_orders_add(&orders[idOrder], idTrack, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
+		idOrder ++;
+
+		ft_orders_add(&orders[idOrder], idTrack+0.5, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
+		idOrder ++;
 	}
 	nbOrder = idOrder;
 
 	/* accelerate when incoming right */
-	for (i = 0+1; i < nbOrder; ++i)
+	for (i = 0+2; i < nbOrder; ++i)
 	{
 		int current = orders[i].pos;
-		int previous = orders[i-1].pos;
 
 		/* if right and curve before, increase before's speed */
-		if (trackInfo->pieces[current].type == PIECE_TYPE_RIGHT && trackInfo->pieces[previous].type == PIECE_TYPE_CURVE)
-			orders[i].pos -= 0.5;
+		if (trackInfo->pieces[current].type == PIECE_TYPE_RIGHT)
+		{
+			orders[i-2].valueDouble += 0.5;
+			orders[i-1].valueDouble += 0.5;
+
+			if (orders[i-1].valueDouble > 10)
+				orders[i-1].valueDouble = 10;
+			if (orders[i-2].valueDouble > 10)
+				orders[i-2].valueDouble = 10;
+		}
 	}
 
 	/* slow down before the curves */
-	for (i = nbOrder-1; i >= 0; --i)
+	for (i = nbOrder-1; i >= 0+1; --i)
 	{
-		#define OFFSET 0.5
-		double currentPos = orders[i].pos - OFFSET;
-
-		while (ft_orders_is_in_range(currentPos, orders[i-1].pos, orders[i].pos))
-		{
-			double posDiff = orders[i].pos - currentPos;
-			double speed = orders[i].valueDouble + posDiff * SPEED_LOST_PER_TRACK_PIECE;
-			if (speed > 10)
-				speed = 10;
-
-			ft_orders_add(&orders[idOrder], currentPos, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
-			idOrder ++;
-
-			if (speed == 10)
-				break;
-
-			currentPos -= OFFSET;
-		}
-	}
-	nbOrder = idOrder;
-
-	/* sort orders */
-	while (sortDone == 0)
-	{
-		sortDone = 1;
-
-		for (i = 0; i < nbOrder-1; ++i)
-		{
-			if (orders[i].pos > orders[i+1].pos)
-			{
-				t_order tmp;
-				memcpy(&tmp, &orders[i], sizeof(t_order));
-				memcpy(&orders[i], &orders[i+1], sizeof(t_order));
-				memcpy(&orders[i+1], &tmp, sizeof(t_order));
-
-				sortDone = 0;
-			}
-		}
+		if (orders[i-1].valueDouble > orders[i].valueDouble + 0.5*SPEED_LOST_PER_TRACK_PIECE)
+			orders[i-1].valueDouble = orders[i].valueDouble + 0.5*SPEED_LOST_PER_TRACK_PIECE;
 	}
 
-	/*****************
-	 *  SWITCH LANE  *
-	 *****************/
-	i = nbOrder;
+	return nbOrder;
+}
+
+void ft_orders_compute_switch(t_order *orders, int nbOrder)
+{
+	int nbCurves = 0, idActualSwitch = 0, idCurrentPiece = 0, i;
+
 	/* note on curve : left = neg | right = pos */
-	nbCurves = 0, idActualSwitch = 0, idCurrentPiece = 0;
+	i = nbOrder;
 
 	/* find first switch */
 	while (trackInfo->pieces[idActualSwitch].isSwitch == 0)
@@ -286,6 +263,13 @@ void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
 		}
 	}
 	nbOrder = i;
+
+void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
+{
+	int nbOrder = 0, i;
+
+	nbOrder = ft_orders_compute_speed(orders, trackInfo);
+	ft_orders_compute_switch(orders, nbOrder);
 
 	/* disable unused slots - TODO : malloc only needed memory */
 	for (i = nbOrder; i < MAX_ORDERS; ++i)

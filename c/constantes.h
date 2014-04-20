@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 11:19:33
+* @Last Modified time: 2014-04-20 18:37:28
 */
 
 #ifndef CONSTANTES_H
@@ -37,7 +37,7 @@
 	print car pos every PRINT_CAR_POS_MODULO game ticks
 	big number like 3000 to desactivate
 */
-#define PRINT_CAR_POS_MODULO		3000
+#define PRINT_CAR_POS_MODULO		50
 
 
 /*************
@@ -48,7 +48,7 @@
 	maximum speed in curve, if the car crash, decrease. (unit : between 0 and 10)
 */
 #define SPEED_CURVE_RADIUS_0		2
-#define SPEED_CURVE_RADIUS_50		3.8
+#define SPEED_CURVE_RADIUS_50		4
 #define SPEED_CURVE_RADIUS_100		6
 #define SPEED_CURVE_RADIUS_150		8
 #define SPEED_CURVE_RADIUS_200		9
@@ -66,9 +66,10 @@
 #define SEND_ORDER_OFFSET			0.0
 
 /*
-	diff between current and wanted speed within the speed order are none (0) or full (1)
+	if the diff between current and wanted speed is greater than this, the speed
+	order will be none (0) or full (1)
 */
-#define SPEED_DIFF_EXTREM_VALUES	0.20
+#define SPEED_DIFF_EXTREM_VALUES	0.10
 
 /*
 	i like to recode everything
@@ -140,7 +141,7 @@ typedef struct		s_car_basic
 	double			angle;
 }					t_car_basic;
 
-#define MAX_ORDERS	200 /* TODO : malloc this stuff */
+#define MAX_ORDERS	300 /* TODO : malloc this stuff */
 typedef struct		s_order
 {
 	double			pos;

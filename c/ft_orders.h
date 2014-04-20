@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:54:25
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 10:55:07
+* @Last Modified time: 2014-04-20 18:50:04
 */
 
 #ifndef FT_ORDERS_H
@@ -27,8 +27,15 @@ void ft_orders_track_parse(cJSON *data, t_track_info *track);
 int ft_orders_piece_count(cJSON *current);
 void ft_orders_piece_parse(cJSON *current, t_track_info *data);
 
+int ft_orders_is_in_range(double pos, double start, double end);
+t_order *ft_get_order_between(t_order *orders, double start, double end);
 double ft_orders_max_speed_get(t_track_piece *pieces, int id);
+
+
+int ft_orders_compute_speed(t_order *orders, t_track_info *trackInfo);
+void ft_orders_compute_switch(t_order *orders, int nbOrder);
 void ft_orders_compute(t_track_info *trackInfo, t_order *orders);
+
 void ft_orders_reenable(t_order *orders);
 void ft_orders_add(t_order *order, double pos, int type, int valueInt, double valueDouble, int status);
 cJSON *ft_orders_next_get(t_car_basic *carInfo, t_order *orders);

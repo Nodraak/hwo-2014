@@ -86,6 +86,9 @@ int main(int argc, char *argv[])
     if (argc != 5)
         error("Usage: bot host port botname botkey\n");
 
+    printf("join info : NOT_AUTO_BUILD=%d nbPlayer=%d trackName=%s\n",
+        NOT_AUTO_BUILD, NB_PLAYER, TRACK_NAME);
+
     sock = connect_to(argv[1], argv[2]);
 
     json = join_msg(argv[3], argv[4]);

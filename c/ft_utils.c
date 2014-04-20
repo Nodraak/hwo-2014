@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 11:15:41
+* @Last Modified time: 2014-04-20 18:28:23
 */
 
 #include "ft_utils.h"
@@ -149,9 +149,12 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 		printf("Orders : (type : speed=%d switch=%d) (switch : left=%d right=%d)\n",
 			ORDER_TYPE_SPEED, ORDER_TYPE_SWITCH, ORDER_SWITCH_LEFT, ORDER_SWITCH_RIGHT);
 		printf("pos\ttype\tspeed\tswitch\n");
-		for (i = 0; orders[i].status != ORDER_STATUS_DISABLED; ++i)
-			printf("%.1f\t%d\t%.1f\t%d\n",
-				orders[i].pos, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
+		for (i = 0; i < MAX_ORDERS; ++i)
+		{
+			if (orders[i].status != ORDER_STATUS_DISABLED)
+				printf("%.1f\t%d\t%.1f\t%d\n",
+					orders[i].pos, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
+		}
 		printf("\n");
 	}
 	else if (strcmp(msgType, "carPositions") == 0)
@@ -185,7 +188,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{
-		all->speedWanted = SPEED_CURVE_RADIUS_100;
+		all->speedWanted = 5;
 		/* TODO */
 	}
 	else
@@ -197,7 +200,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 	if (tick % 20 == 0)
 		printf("gameTicks\tpos\tspeed\twanted\tangle\t\torder\n");
 	if (tick != -1)
-		printf("%d\t\t%.1f\t%.1f\t%.1f\t%.1f", tick, all->pos, all->speedActual, all->speedWanted, all->angle);
+		printf("%d\t\t%.2f\t%.1f\t%.1f\t%.1f", tick, all->pos, all->speedActual, all->speedWanted, all->angle);
 }
 
 
@@ -248,7 +251,7 @@ void ft_update_car_data(cJSON *data, t_car_basic *all, t_track_info *trackInfo, 
 	/*=== check for speed - if on a bend ===*/
 	/* TODO add order insted of hard coded speed order */
 
-
+	(void)action, (void)AngleDiff, (void)i, (void)haveOrderInNextTwoPieces, (void)orders;
 #if 0
 	speed = all->speedActual;
 	AngleDiff = ft_abs(all->angle) - ft_abs(oldAngle);

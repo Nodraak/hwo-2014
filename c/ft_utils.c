@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 18:28:23
+* @Last Modified time: 2014-04-20 20:11:33
 */
 
 #include "ft_utils.h"
@@ -20,6 +20,7 @@ void ft_main_loop(int sock)
 	t_track_info *trackInfo = NULL;
 	t_order *orders = NULL;
 	int isRaceStarted = 0;
+	char *trackName = NULL;
 
 	/* init */
 	all = calloc(1, sizeof(t_car_basic));
@@ -40,7 +41,7 @@ void ft_main_loop(int sock)
 		if (msg_type == NULL)
 			error("missing msgType field");
 
-		ft_utils_data_parse(json, all, trackInfo, orders);
+		ft_utils_data_parse(json, all, trackInfo, orders, &trackName);
 
 		/* prepare response */
 		msg_type_name = msg_type->valuestring;
@@ -74,6 +75,9 @@ void ft_main_loop(int sock)
 
 	printf("Read null msg, cleaning and quitting ...\n");
 
+	/* save orders to file */
+	ft_orders_file_save_to(orders, trackName);
+
 	free(trackInfo->pieces);
 
 	free(all);
@@ -81,9 +85,26 @@ void ft_main_loop(int sock)
 	free(orders);
 }
 
+char *ft_trackName_get(cJSON *data)
+{
+	cJSON *race, *track, *id;
 
+	race = cJSON_GetObjectItem(data, "race");
+	if (race == NULL)
+		return NULL;
 
-void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo, t_order *orders)
+	track = cJSON_GetObjectItem(race, "track");
+	if (track == NULL)
+		return NULL;
+
+	id = cJSON_GetObjectItem(track, "id");
+	if (id == NULL)
+		return NULL;
+	
+	return id->valuestring;
+}
+
+void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo, t_order *orders, char **trackName)
 {
 	cJSON *data = NULL;
 	char *msgType = NULL;
@@ -98,42 +119,29 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 
 	if (strcmp(msgType, "gameInit") == 0)
 	{
-		/* analyse track */
+		FILE *f = NULL;
+
 		ft_orders_track_parse(data, trackInfo);
-		ft_orders_compute(trackInfo, orders);
-#if 0
-		/* load from file */
-+		if (name != NULL && strcmp(name->valuestring, "Keimola") == 0)
-+		{
-+			FILE *f = NULL;
-+			int valueInt, idOrder = 0, orderType;
-+			double pos, valueDouble;
-+
-+			printf("Info : knowned race, loading file ...\n");
-+			f = fopen("raceData/Keimola.txt", "r");
-+			if (f == NULL)
-+				error("Error fopen %d %s\n", __LINE__, __FILE__);
-+			while (!feof(f))
-+			{
-+				int ret = fscanf(f, "%lf\t%d\t%lf\t%d", &pos, &orderType, &valueDouble, &valueInt);
-+				if (ret == 4)
-+				{
-+					ft_order_add(&orders[idOrder], pos, orderType, valueInt, valueDouble, ORDER_STATUS_ENABLED);
-+					idOrder++;
-+				}
-+				else
-+				{
-+					while (idOrder < MAX_ORDERS)
-+					{
-+						ft_order_add(&orders[idOrder], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
-+						idOrder++;
-+					}
-+					break;
-+				}
-+			}
-+		}
-+		else /* guess */
-#endif
+
+		*trackName = ft_trackName_get(data);
+		printf("## trackName=%s\n", *trackName);
+		if (*trackName != NULL)
+		{
+			char path[1024];
+			sprintf(path, "./%s.orders", *trackName);
+			f = fopen(path, "r");
+		}
+		if (*trackName == NULL || f == NULL)
+		{
+			printf("## Unknown track, guessing ...\n");
+			ft_orders_compute(trackInfo, orders);
+		}
+		else
+		{
+			printf("## Known track, loading from file (%s)...\n", *trackName);
+			ft_orders_file_load_from(orders, f);
+			fclose(f);
+		}
 
 		/* printf for debug */
 		ft_utils_data_raw_print("GAME INIT", json);
@@ -153,7 +161,7 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 		{
 			if (orders[i].status != ORDER_STATUS_DISABLED)
 				printf("%.1f\t%d\t%.1f\t%d\n",
-					orders[i].pos, orders[i].type, orders[i].valueDouble, orders[i].valueInt);
+					orders[i].pos, orders[i].type, orders[i].speed, orders[i].switchDir);
 		}
 		printf("\n");
 	}
@@ -182,9 +190,9 @@ void ft_utils_data_parse(cJSON *json, t_car_basic *all, t_track_info *trackInfo,
 		printf("speed orders :\npos\tspeed\n");
 		for (i = 0; orders[i].type == ORDER_TYPE_SPEED; ++i)
 			printf("%.3f\t%.1f\n",
-				orders[i].pos, orders[i].valueDouble);
+				orders[i].pos, orders[i].speed);
 
-		printf("\a\a\a\a\a\n");
+		printf("\a\n");
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{

@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 18:57:33
+* @Last Modified time: 2014-04-20 20:09:45
 */
 
 #include "ft_orders.h"
@@ -10,6 +10,58 @@
 /*****************
  *  TRACK PARSE  *
  *****************/
+
+void ft_orders_file_save_to(t_order *orders, char *trackName)
+{
+	char path[1024];
+	FILE *f = NULL;
+	int i;
+
+	sprintf(path, "./%s.orders", trackName);
+
+	f = fopen(path, "w");
+	if (f == NULL)
+	{
+		printf("## Cant save orders to file %s.\n", trackName);
+		return;
+	}
+
+	for (i = 0; i < MAX_ORDERS; ++i)
+	{
+		if (orders[i].status != ORDER_STATUS_DISABLED)
+			fprintf(f, "%f\t%d\t%d\t%f\n", orders[i].pos, orders[i].type, orders[i].switchDir, orders[i].speed);
+	}
+
+	fclose(f);
+	printf("## Saved orders to file %s.\n", path);
+}
+
+
+void ft_orders_file_load_from(t_order *orders, FILE *f)
+{
+	double			pos;
+	t_order_type	type;
+	t_switch_type	switchDir;
+	double			speed;
+	int i = 0;
+
+	while (!feof(f))
+	{
+		int ret = fscanf(f, "%lf\t%d\t%d\t%lf", &pos, &type, &switchDir, &speed);
+
+		if (ret != 4)
+			break;
+
+		ft_orders_add(&orders[i], pos, type, switchDir, speed, ORDER_STATUS_ENABLED);
+		i ++;
+	}
+
+	while (i < MAX_ORDERS)
+	{
+		ft_orders_add(&orders[i], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
+		i ++;
+	}
+}
 
 void ft_orders_track_parse(cJSON *data, t_track_info *track)
 {
@@ -204,21 +256,21 @@ int ft_orders_compute_speed(t_order *orders, t_track_info *trackInfo)
 		/* if right and curve before, increase before's speed */
 		if (trackInfo->pieces[current].type == PIECE_TYPE_RIGHT)
 		{
-			orders[i-2].valueDouble += 0.5;
-			orders[i-1].valueDouble += 0.5;
+			orders[i-2].speed += 0.5;
+			orders[i-1].speed += 0.5;
 
-			if (orders[i-1].valueDouble > 10)
-				orders[i-1].valueDouble = 10;
-			if (orders[i-2].valueDouble > 10)
-				orders[i-2].valueDouble = 10;
+			if (orders[i-1].speed > 10)
+				orders[i-1].speed = 10;
+			if (orders[i-2].speed > 10)
+				orders[i-2].speed = 10;
 		}
 	}
 
 	/* slow down before the curves */
 	for (i = nbOrder-1; i >= 0+1; --i)
 	{
-		if (orders[i-1].valueDouble > orders[i].valueDouble + 0.5*SPEED_LOST_PER_TRACK_PIECE)
-			orders[i-1].valueDouble = orders[i].valueDouble + 0.5*SPEED_LOST_PER_TRACK_PIECE;
+		if (orders[i-1].speed > orders[i].speed + 0.5*SPEED_LOST_PER_TRACK_PIECE)
+			orders[i-1].speed = orders[i].speed + 0.5*SPEED_LOST_PER_TRACK_PIECE;
 	}
 
 	return nbOrder;
@@ -289,12 +341,12 @@ void ft_orders_reenable(t_order *orders)
 }
 
 
-void ft_orders_add(t_order *order, double pos, int type, int valueInt, double valueDouble, int status)
+void ft_orders_add(t_order *order, double pos, int type, t_switch_type switchDir, double speed, int status)
 {
 	order->pos = pos;
 	order->type = type;
-	order->valueInt = valueInt;
-	order->valueDouble = valueDouble;
+	order->switchDir = switchDir;
+	order->speed = speed;
 	order->status = status;
 }
 
@@ -324,12 +376,12 @@ cJSON *ft_orders_next_get(t_car_basic *carInfo, t_order *orders)
 	/* if order is found, handle it, else check speed */
 
 	if (ptr != NULL && ptr->type == ORDER_TYPE_SPEED)
-		carInfo->speedWanted = ptr->valueDouble;
+		carInfo->speedWanted = ptr->speed;
 
 	/* speed or switch lane - default == speed */
 	if (ptr != NULL && ptr->type == ORDER_TYPE_SWITCH)
 	{
-		if (ptr->valueInt == ORDER_SWITCH_RIGHT)
+		if (ptr->switchDir == ORDER_SWITCH_RIGHT)
 			msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\tswitch right");
 		else
 			msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\tswitch left");

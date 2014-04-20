@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 18:37:28
+* @Last Modified time: 2014-04-20 19:44:36
 */
 
 #ifndef CONSTANTES_H
@@ -37,7 +37,7 @@
 	print car pos every PRINT_CAR_POS_MODULO game ticks
 	big number like 3000 to desactivate
 */
-#define PRINT_CAR_POS_MODULO		50
+#define PRINT_CAR_POS_MODULO		3000
 
 
 /*************
@@ -146,8 +146,8 @@ typedef struct		s_order
 {
 	double			pos;
 	t_order_type	type;
-	int				valueInt;
-	double			valueDouble;
+	t_switch_type	switchDir;
+	double			speed;
 	t_order_status	status;
 }					t_order;
 

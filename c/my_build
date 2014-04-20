@@ -1,4 +1,4 @@
 #!/bin/bash -e
 
-make re
+make re -f my_Makefile
 

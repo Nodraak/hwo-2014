@@ -107,9 +107,10 @@ cJSON *join_msg(char *bot_name, char *bot_key)
     cJSON *botId = cJSON_CreateObject();
     cJSON *data = cJSON_CreateObject();
 
-#ifndef TRACK_NAME
-    #error a track name must be defined
-#endif
+#ifdef NOT_AUTO_BUILD
+    #ifndef TRACK_NAME
+        #error a track name must be defined
+    #endif
 
     cJSON_AddStringToObject(botId, "name", bot_name);
     cJSON_AddStringToObject(botId, "key", bot_key);
@@ -118,6 +119,14 @@ cJSON *join_msg(char *bot_name, char *bot_key)
     cJSON_AddStringToObject(data, "trackName", TRACK_NAME);
 
     return make_msg("joinRace", data);
+#else
+    (void)botId; /* disable warning */
+
+    cJSON_AddStringToObject(data, "name", bot_name);
+    cJSON_AddStringToObject(data, "key", bot_key);
+
+    return make_msg("join", data);
+#endif
 }
 
 cJSON *throttle_msg(double throttle)

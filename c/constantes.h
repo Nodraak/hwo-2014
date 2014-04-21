@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 19:44:36
+* @Last Modified time: 2014-04-20 21:20:54
 */
 
 #ifndef CONSTANTES_H
@@ -19,7 +19,7 @@
 /*
 	name of the track to join - define one and only one
 */
-#define ID_TRACK						3
+#define ID_TRACK						1
 
 #if (ID_TRACK == 1)
 	#define TRACK_NAME					"keimola"
@@ -31,7 +31,7 @@
 /*
 	number of player for the game
 */
-#define NB_PLAYER					1
+#define NB_PLAYER					2
 
 /*
 	print car pos every PRINT_CAR_POS_MODULO game ticks

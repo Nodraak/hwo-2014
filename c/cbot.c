@@ -80,14 +80,19 @@ void log_message(char *msg_type_name, cJSON *msg)
 
 int main(int argc, char *argv[])
 {
-    int sock;
+    int sock, notAutoBuild;
     cJSON *json;
 
     if (argc != 5)
         error("Usage: bot host port botname botkey\n");
 
-    printf("join info : NOT_AUTO_BUILD=%d nbPlayer=%d trackName=%s\n",
-        NOT_AUTO_BUILD, NB_PLAYER, TRACK_NAME);
+#ifdef NOT_AUTO_BUILD
+    notAutoBuild = 1;
+#else
+    notAutoBuild = 0;
+#endif
+    printf("join info : NOT_AUTO_BUILD=%d nbPlayer=%d trackName(if notAutoBuild)=%s\n",
+        notAutoBuild, NB_PLAYER, TRACK_NAME);
 
     sock = connect_to(argv[1], argv[2]);
 

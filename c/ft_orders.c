@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 20:09:45
+* @Last Modified time: 2014-04-20 21:48:01
 */
 
 #include "ft_orders.h"
@@ -17,6 +17,9 @@ void ft_orders_file_save_to(t_order *orders, char *trackName)
 	FILE *f = NULL;
 	int i;
 
+	if (trackName == NULL)
+		return;
+	
 	sprintf(path, "./%s.orders", trackName);
 
 	f = fopen(path, "w");

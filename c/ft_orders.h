@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:54:25
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 19:41:27
+* @Last Modified time: 2014-04-21 16:10:17
 */
 
 #ifndef FT_ORDERS_H
@@ -23,10 +23,10 @@
  *  PROTO  *
  ***********/
 
-void ft_orders_file_save_to(t_order *orders, char *trackName);
+void ft_orders_file_save_to(t_order *orders, char *path);
 void ft_orders_file_load_from(t_order *orders, FILE *f);
 
-void ft_orders_track_parse(cJSON *data, t_track_info *track);
+void ft_init_track_parse(cJSON *data, t_track_info *track);
 int ft_orders_piece_count(cJSON *current);
 void ft_orders_piece_parse(cJSON *current, t_track_info *data);
 
@@ -41,7 +41,7 @@ void ft_orders_compute(t_track_info *trackInfo, t_order *orders);
 
 void ft_orders_reenable(t_order *orders);
 void ft_orders_add(t_order *order, double pos, int type, t_switch_type switchDir, double speed, int status);
-cJSON *ft_orders_next_get(t_car_basic *carInfo, t_order *orders);
+cJSON *ft_orders_next_get(t_car_info *carInfo, t_order *orders);
 
 
 #endif /* FT_ORDERS_H */

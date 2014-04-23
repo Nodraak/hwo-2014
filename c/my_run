@@ -13,7 +13,7 @@ source ../config
 SERVER="webber"
 
 
-./run $SERVER.helloworldopen.com 8091 Nodraak ey8JSibC+rMZ0w
+time ./run $SERVER.helloworldopen.com 8091 Nodraak ey8JSibC+rMZ0w
 
 
 

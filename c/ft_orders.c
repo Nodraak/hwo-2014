@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-20 21:48:01
+* @Last Modified time: 2014-04-22 11:58:03
 */
 
 #include "ft_orders.h"
@@ -11,21 +11,18 @@
  *  TRACK PARSE  *
  *****************/
 
-void ft_orders_file_save_to(t_order *orders, char *trackName)
+void ft_orders_file_save_to(t_order *orders, char *path)
 {
-	char path[1024];
 	FILE *f = NULL;
 	int i;
 
-	if (trackName == NULL)
+	if (path == NULL)
 		return;
 	
-	sprintf(path, "./%s.orders", trackName);
-
 	f = fopen(path, "w");
 	if (f == NULL)
 	{
-		printf("## Cant save orders to file %s.\n", trackName);
+		printf("## Cant save orders to file %s.\n", path);
 		return;
 	}
 
@@ -50,7 +47,7 @@ void ft_orders_file_load_from(t_order *orders, FILE *f)
 
 	while (!feof(f))
 	{
-		int ret = fscanf(f, "%lf\t%d\t%d\t%lf", &pos, &type, &switchDir, &speed);
+		int ret = fscanf(f, "%lf\t%d\t%d\t%lf", &pos, (int*)&type, (int*)&switchDir, &speed);
 
 		if (ret != 4)
 			break;
@@ -66,7 +63,7 @@ void ft_orders_file_load_from(t_order *orders, FILE *f)
 	}
 }
 
-void ft_orders_track_parse(cJSON *data, t_track_info *track)
+void ft_init_track_parse(cJSON *data, t_track_info *track)
 {
 	cJSON *pieces = NULL;
 	int i;
@@ -354,7 +351,7 @@ void ft_orders_add(t_order *order, double pos, int type, t_switch_type switchDir
 }
 
 
-cJSON *ft_orders_next_get(t_car_basic *carInfo, t_order *orders)
+cJSON *ft_orders_next_get(t_car_info *carInfo, t_order *orders)
 {
 	cJSON *msg = NULL;
 	t_order *ptr = NULL;

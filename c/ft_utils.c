@@ -2,10 +2,13 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-22 12:17:23
+* @Last Modified time: 2014-04-23 12:36:30
 */
 
 #include "ft_utils.h"
+
+void ft_orders_update(t_order *orders, t_track_info *trackInfo);
+
 
 /********************
  *  MAIN FUNCTIONS  *
@@ -98,10 +101,17 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	}
 	else if (strcmp(msgType, "lapFinished") == 0)
 	{
+		int i;
+
 		ft_orders_reenable(data->orders);
+		if (data->carInfo->lap > 0)
+			ft_orders_update(data->orders, data->trackInfo);
 		data->carInfo->lap++;
 
 		ft_print_lapFinished(data, json);
+
+		for (i = 0; i < data->trackInfo->nbElem; ++i)
+			data->trackInfo->pieces[i].maxAngle = 0;
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{
@@ -123,6 +133,45 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	if (tick != -1)
 		printf("%d\t\t%.2f\t%.1f\t%.1f\t%.1f", tick, data->carInfo->pos,
 			data->carInfo->speedActual, data->carInfo->speedWanted, data->carInfo->angle);
+}
+
+
+void ft_orders_update(t_order *orders, t_track_info *trackInfo)
+{
+	int i;
+	double speed;
+
+	for (i = 0; i < trackInfo->nbElem; ++i)
+	{
+		if (trackInfo->pieces[i].maxAngle < 50 && orders[i*2].speed < 10)
+		{
+			speed = (50.0 - trackInfo->pieces[i].maxAngle) / 100.0;
+			/*orders[i*2].speed += speed;*/
+
+			printf("%d %.2f\n", i, speed);
+		}
+	}
+
+
+#if 0
+
+	/* slow down before the curves */
+	for (i = nbOrder-1; i >= 0+1; --i)
+	{
+		if (orders[i-1].speed > orders[i].speed + 0.5*SPEED_LOST_PER_TRACK_PIECE)
+			orders[i-1].speed = orders[i].speed + 0.5*SPEED_LOST_PER_TRACK_PIECE;
+	}
+
+
+	/*
+	for (i = 0; i < data->trackInfo->nbElem; ++i)
+	{
+		if (data->trackInfo->pieces[i].type == PIECE_TYPE_RIGHT)
+			printf("   %d\n", data->trackInfo->pieces[i].maxAngle);
+		else
+			printf("%d %d\n", i, data->trackInfo->pieces[i].maxAngle);
+	}*/
+#endif
 }
 
 

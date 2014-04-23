@@ -1,3 +1,7 @@
+
+/* fix ci compile error about struct addrinfo */
+#define _POSIX_C_SOURCE 200112L
+
 #include <errno.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -12,6 +16,7 @@
 #include "cJSON.h"
 #include "cbot.h"
 #include "ft_utils.h"
+
 
 void error(char *fmt, ...)
 {

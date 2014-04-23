@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-21 11:28:42
+* @Last Modified time: 2014-04-23 12:35:50
 */
 
 #ifndef FT_UTILS_H
@@ -21,6 +21,10 @@
 #include "cbot.h"
 #include "constantes.h"
 #include "ft_orders.h"
+
+/* for strdup and M_PI warning and error */
+char *strdup(const char *s);
+#define _BSD_SOURCE
 
 
 void ft_main_loop(int sock);

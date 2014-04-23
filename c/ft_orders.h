@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:54:25
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-21 16:10:17
+* @Last Modified time: 2014-04-23 12:29:21
 */
 
 #ifndef FT_ORDERS_H
@@ -18,6 +18,10 @@
 #include "cbot.h"
 #include "constantes.h"
 #include "ft_utils.h"
+
+#ifndef M_PI
+	#define M_PI 3.14159265436
+#endif
 
 /***********
  *  PROTO  *

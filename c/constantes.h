@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-22 12:16:01
+* @Last Modified time: 2014-04-23 19:12:21
 */
 
 #ifndef CONSTANTES_H
@@ -37,7 +37,7 @@
 	print car pos every PRINT_CAR_POS_MODULO game ticks
 	big number like 3000 to desactivate
 */
-#define PRINT_CAR_POS_MODULO		3000
+#define PRINT_CAR_POS_MODULO		100
 
 
 /*************

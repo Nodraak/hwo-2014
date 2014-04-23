@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-23 12:36:30
+* @Last Modified time: 2014-04-23 19:12:55
 */
 
 #include "ft_utils.h"
@@ -101,17 +101,30 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	}
 	else if (strcmp(msgType, "lapFinished") == 0)
 	{
-		int i;
+		/* osef des autres joueurs */
 
-		ft_orders_reenable(data->orders);
-		if (data->carInfo->lap > 0)
-			ft_orders_update(data->orders, data->trackInfo);
-		data->carInfo->lap++;
+		cJSON *name = ft_utils_field_find("name", msgData);
+		if (name == NULL)
+			printf("WARNING %d %s.\n", __LINE__, __FILE__);
+		else
+		{
+			if (strcmp(name->valuestring, "Nodraak") == 0)
+			{
+				int i;
 
-		ft_print_lapFinished(data, json);
+				ft_orders_reenable(data->orders);
+				if (data->carInfo->lap > 0)
+					ft_orders_update(data->orders, data->trackInfo);
+				data->carInfo->lap++;
 
-		for (i = 0; i < data->trackInfo->nbElem; ++i)
-			data->trackInfo->pieces[i].maxAngle = 0;
+				ft_print_lapFinished(data, json);
+
+				for (i = 0; i < data->trackInfo->nbElem; ++i)
+					data->trackInfo->pieces[i].maxAngle = 0;
+			}
+			else
+				printf("## player %s finished a turn.\n", name->valuestring);
+		}
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{

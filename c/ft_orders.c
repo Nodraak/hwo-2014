@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 11:53:31
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-22 11:58:03
+* @Last Modified time: 2014-04-26 20:12:19
 */
 
 #include "ft_orders.h"
@@ -52,13 +52,13 @@ void ft_orders_file_load_from(t_order *orders, FILE *f)
 		if (ret != 4)
 			break;
 
-		ft_orders_add(&orders[i], pos, type, switchDir, speed, ORDER_STATUS_ENABLED);
+		ft_orders_add(orders, i, pos, type, switchDir, speed, ORDER_STATUS_ENABLED);
 		i ++;
 	}
 
 	while (i < MAX_ORDERS)
 	{
-		ft_orders_add(&orders[i], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
+		ft_orders_add(orders, i, 0, 0, 0, 0, ORDER_STATUS_DISABLED);
 		i ++;
 	}
 }
@@ -82,6 +82,7 @@ void ft_init_track_parse(cJSON *data, t_track_info *track)
 	ft_orders_piece_parse(pieces, track);
 
 	/* calc total length of track - useless, but fun for make statistics */
+	track->lengthTotal = 0;
 	for (i = 0; i < track->nbElem; ++i)
 		track->lengthTotal += track->pieces[i].length;
 
@@ -169,7 +170,7 @@ void ft_orders_piece_parse(cJSON *current, t_track_info *data)
  *  ORDERS COMPUTE  *
  ********************/
 
-double ft_orders_max_speed_get(t_track_piece *pieces, int id)
+double ft_orders_max_speed_get(t_track_piece *pieces, int id, int maxId)
 {
 	double radius = ft_abs(pieces[id].radius);
 	double ret;
@@ -190,7 +191,7 @@ double ft_orders_max_speed_get(t_track_piece *pieces, int id)
 
 	/* if short curve, increase max speed */
 	angle = pieces[id].angle, i = id+1;
-	while (pieces[i].angle == pieces[id].angle)
+	while (i < maxId && pieces[i].angle == pieces[id].angle)
 		angle += pieces[i].angle, i++;
 
 	if (ft_abs(angle) < 25) /* 22 for example */
@@ -238,12 +239,12 @@ int ft_orders_compute_speed(t_order *orders, t_track_info *trackInfo)
 
 	for (idTrack = 0; idTrack < trackInfo->nbElem; ++idTrack)
 	{
-		double speed = ft_orders_max_speed_get(trackInfo->pieces, idTrack);
+		double speed = ft_orders_max_speed_get(trackInfo->pieces, idTrack, trackInfo->nbElem);
 
-		ft_orders_add(&orders[idOrder], idTrack, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
+		ft_orders_add(orders, idOrder, idTrack, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
 		idOrder ++;
 
-		ft_orders_add(&orders[idOrder], idTrack+0.5, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
+		ft_orders_add(orders, idOrder, idTrack+0.5, ORDER_TYPE_SPEED, 0, speed, ORDER_STATUS_ENABLED);
 		idOrder ++;
 	}
 	nbOrder = idOrder;
@@ -309,11 +310,12 @@ int ft_orders_compute_switch(t_order *orders, int nbOrder, t_track_info *trackIn
 		{
 			int order = nbCurves < 0 ? ORDER_SWITCH_LEFT : ORDER_SWITCH_RIGHT;
 
-			ft_orders_add(&orders[i], idActualSwitch-0.5, ORDER_TYPE_SWITCH, order, 0, ORDER_STATUS_ENABLED);
+			ft_orders_add(orders, i, idActualSwitch-1, ORDER_TYPE_SWITCH, order, 0, ORDER_STATUS_ENABLED);
 			i ++;
 			idActualSwitch = idCurrentPiece;
 		}
 	}
+
 	return i;
 }
 
@@ -326,7 +328,7 @@ void ft_orders_compute(t_track_info *trackInfo, t_order *orders)
 
 	/* disable unused slots - TODO : malloc only needed memory */
 	for (i = nbOrder; i < MAX_ORDERS; ++i)
-		ft_orders_add(&orders[i], 0, 0, 0, 0, ORDER_STATUS_DISABLED);
+		ft_orders_add(orders, i, 0, 0, 0, 0, ORDER_STATUS_DISABLED);
 }
 
 void ft_orders_reenable(t_order *orders)
@@ -341,13 +343,16 @@ void ft_orders_reenable(t_order *orders)
 }
 
 
-void ft_orders_add(t_order *order, double pos, int type, t_switch_type switchDir, double speed, int status)
+void ft_orders_add(t_order *order, int id, double pos, int type, t_switch_type switchDir, double speed, int status)
 {
-	order->pos = pos;
-	order->type = type;
-	order->switchDir = switchDir;
-	order->speed = speed;
-	order->status = status;
+	if (id >= MAX_ORDERS)
+		error("Nb max orders reached. %d %s.\n", __LINE__, __FILE__);
+
+	order[id].pos = pos;
+	order[id].type = type;
+	order[id].switchDir = switchDir;
+	order[id].speed = speed;
+	order[id].status = status;
 }
 
 
@@ -375,42 +380,53 @@ cJSON *ft_orders_next_get(t_car_info *carInfo, t_order *orders)
 
 	/* if order is found, handle it, else check speed */
 
-	if (ptr != NULL && ptr->type == ORDER_TYPE_SPEED)
-		carInfo->speedWanted = ptr->speed;
-
 	/* speed or switch lane - default == speed */
-	if (ptr != NULL && ptr->type == ORDER_TYPE_SWITCH)
+	if (ptr != NULL)
 	{
-		if (ptr->switchDir == ORDER_SWITCH_RIGHT)
-			msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\tswitch right");
-		else
-			msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\tswitch left");
-	}
-	else
-	{
-		if (ft_abs(carInfo->speedActual - carInfo->speedWanted) > SPEED_DIFF_EXTREM_VALUES) /* big diff, extrem values */
+		if (ptr->type == ORDER_TYPE_SWITCH)
 		{
-			if (carInfo->speedActual > carInfo->speedWanted) /* 0 to 10 values */
-				newSpeed = 0;
+			if (ptr->switchDir == ORDER_SWITCH_RIGHT)
+				msg = make_msg("switchLane", cJSON_CreateString("Right")), printf("\t\tswitch right");
 			else
-				newSpeed = 1;
+				msg = make_msg("switchLane", cJSON_CreateString("Left")), printf("\t\tswitch left");
 		}
-		else
-			newSpeed = carInfo->speedWanted/10;
-
-		/* if angle > 50 and order to increase speed, dont order anything
-			or if the speed order has yet been sended */
-		if ((ft_abs(carInfo->angle) > 50 && carInfo->speedWanted > carInfo->speedActual)
-			|| carInfo->lastSpeedOrder == newSpeed)
-			return NULL;
 		else
 		{
-			msg = throttle_msg(newSpeed);
-			carInfo->lastSpeedOrder = newSpeed;
-			printf("\t\t%.2f -> %.2f", newSpeed, carInfo->speedWanted/10);
+			carInfo->speedWanted = ptr->speed;
+
+			/* big diff, extrem values -> 0 to 1 values */
+			if (ft_abs(carInfo->speedActual - carInfo->speedWanted) > SPEED_DIFF_EXTREM_VALUES)
+			{
+				if (carInfo->speedActual > carInfo->speedWanted)
+					newSpeed = 0;
+				else
+					newSpeed = 1;
+			}
+			else
+				newSpeed = carInfo->speedWanted/10;
+
+			/* if the speed order has yet been sended */
+			if (carInfo->lastSpeedOrder == newSpeed)
+				;
+			else
+			{
+				msg = throttle_msg(newSpeed);
+				carInfo->lastSpeedOrder = newSpeed;
+				printf("\t\t%.2f -> %.2f", newSpeed, carInfo->speedWanted/10);
+			}
 		}
 	}
-	
+
+	/* check if order has been received */
+	if (msg == NULL)
+	{
+		if ((carInfo->speedOld <= carInfo->speedActual && carInfo->speedActual <= carInfo->lastSpeedOrder)
+			|| (carInfo->speedOld >= carInfo->speedActual && carInfo->speedActual >= carInfo->lastSpeedOrder))
+			;/* order applyed */
+		else
+			msg = throttle_msg(carInfo->lastSpeedOrder);
+	}
+
 	return msg;
 }
 

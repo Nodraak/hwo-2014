@@ -2,23 +2,26 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-23 19:12:55
+* @Last Modified time: 2014-04-26 21:39:55
 */
 
 #include "ft_utils.h"
 
 void ft_orders_update(t_order *orders, t_track_info *trackInfo);
-
+cJSON *ft_utils_find_car_pos(char *botName, cJSON *msgData);
 
 /********************
  *  MAIN FUNCTIONS  *
  ********************/
 
-void ft_main_loop(int sock)
+int quit = 0;
+
+void ft_main_loop(int sock, char *botName)
 {
 	cJSON *json = NULL;
 	cJSON *msg = NULL, *msg_type = NULL;
-	t_data data = {NULL, NULL, NULL, GAME_STATUS_WAITING, NULL};
+	t_data data = {NULL, NULL, NULL, GAME_STATUS_WAITING, NULL, NULL};
+	data.botName = botName;
 
 	/* init */
 	data.carInfo = calloc(1, sizeof(t_car_info));
@@ -32,7 +35,7 @@ void ft_main_loop(int sock)
 		error("Error malloc %d %s\n", __LINE__, __FILE__);
 
 	/* main loop */
-	while ((json = read_msg(sock)) != NULL)
+	while ((json = read_msg(sock)) != NULL && !quit)
 	{
 		msg_type = cJSON_GetObjectItem(json, "msgType");
 		if (msg_type == NULL)
@@ -40,7 +43,7 @@ void ft_main_loop(int sock)
 
 		/* handle recieved data and updated info */
 		ft_main_data_parse(json, &data);
-
+printf("\tGS=%d", data.gameStatus);
 		/* prepare and send response */
 		msg = ft_main_msg_make(msg_type, &data);
 		write_msg(sock, msg);
@@ -54,12 +57,13 @@ void ft_main_loop(int sock)
 
 	printf("Read null msg, \n");
 	if (data.gameStatus == GAME_STATUS_TOURNAMENT_END)
+	{
 		printf("clean exit, writing orders to file.\n");
+		/* save orders to file */
+		ft_orders_file_save_to(data.orders, data.trackDataPath);
+	}
 	else
 		printf("dirty exit, dont write anything.\n");
-
-	/* save orders to file */
-	ft_orders_file_save_to(data.orders, data.trackDataPath);
 
 	/* free every malloc */
 	free(data.trackInfo->pieces);
@@ -81,6 +85,12 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	msgType = cJSON_GetObjectItem(json, "msgType")->valuestring;
 	msgData = cJSON_GetObjectItem(json, "data");
 
+	if (msgType == NULL)
+	{
+		printf("NO msgType field found. %d %s\n", __LINE__, __FILE__);
+		return;
+	}
+
 	if (strcmp(msgType, "gameInit") == 0)
 	{
 		/* parse track info and get orders */
@@ -91,9 +101,26 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 		ft_print_raw_data("GAME INIT", json);
 		ft_print_gameInit_data(data);
 	}
+	else if (strcmp(msgType, "gameStart") == 0)
+	{
+		int i;
+
+		if (data->carInfo->lap != -1)
+		{
+			for (i = 0; i < MAX_ORDERS; ++i)
+			{
+				if (data->orders[i].status == ORDER_STATUS_ENABLED
+					&& data->orders[i].pos < data->carInfo->pos)
+				{
+					data->orders[i].status = ORDER_STATUS_SENDED;
+				}
+			}
+		}
+	}
 	else if (strcmp(msgType, "carPositions") == 0)
 	{
-		ft_update_car_data(msgData, data);
+		cJSON *posData = ft_utils_find_car_pos(data->botName, msgData->child);
+		ft_update_car_data(posData, data);
 
 		/* printf for debug */
 		if (tick % PRINT_CAR_POS_MODULO == 0 && tick != -1)
@@ -101,14 +128,16 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	}
 	else if (strcmp(msgType, "lapFinished") == 0)
 	{
-		/* osef des autres joueurs */
+		cJSON *name = NULL;
 
-		cJSON *name = ft_utils_field_find("name", msgData);
+		/* osef des autres joueurs */
+		name = ft_utils_field_find("name", msgData);
+
 		if (name == NULL)
 			printf("WARNING %d %s.\n", __LINE__, __FILE__);
 		else
 		{
-			if (strcmp(name->valuestring, "Nodraak") == 0)
+			if (strcmp(name->valuestring, data->botName) == 0)
 			{
 				int i;
 
@@ -135,6 +164,10 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	{
 		data->gameStatus = GAME_STATUS_TOURNAMENT_END;
 	}
+	else if (strcmp(msgType, "join") == 0 || strcmp(msgType, "yourCar") == 0)
+	{
+		printf("JOIN / YOUR CAR\n");
+	}
 	else
 	{
 		ft_print_raw_data(msgType, json);
@@ -148,6 +181,36 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 			data->carInfo->speedActual, data->carInfo->speedWanted, data->carInfo->angle);
 }
 
+cJSON *ft_utils_find_car_pos(char *botName, cJSON *msgData)
+{
+	int found = 0;
+
+	while (!found && msgData != NULL)
+	{
+		cJSON *currentName = NULL;
+
+		currentName = ft_utils_field_find("name", msgData);
+
+		if (currentName != NULL)
+		{
+			if (strcmp(botName, currentName->valuestring) == 0)
+				found = 1;
+			else
+				msgData = msgData->next;
+		}
+		else
+		{
+			printf("WARNING %d %s.\n", __LINE__, __FILE__);
+			msgData = msgData->next;
+		}
+	}
+
+	if (found)
+		return msgData;
+	else
+		return NULL;
+}
+
 
 void ft_orders_update(t_order *orders, t_track_info *trackInfo)
 {
@@ -156,35 +219,27 @@ void ft_orders_update(t_order *orders, t_track_info *trackInfo)
 
 	for (i = 0; i < trackInfo->nbElem; ++i)
 	{
-		if (trackInfo->pieces[i].maxAngle < 50 && orders[i*2].speed < 10)
+		if (trackInfo->pieces[i].maxAngle < UPDATE_SPEED_MAX_ANGLE_UPDATE_BIG)
 		{
-			speed = (50.0 - trackInfo->pieces[i].maxAngle) / 100.0;
-			/*orders[i*2].speed += speed;*/
+			speed = (UPDATE_SPEED_MAX_ANGLE_UPDATE_BIG - trackInfo->pieces[i].maxAngle) / 100.0;
+			if (trackInfo->pieces[i].maxAngle > UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW1)
+				speed /= 5;
+			if (trackInfo->pieces[i].maxAngle > UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW2)
+				speed /= 10;
+
+			/* actual */
+			orders[i*2].speed += speed;
+			if (orders[i*2].speed > 10)
+				orders[i*2].speed = 10;
+
+			/* next */
+			orders[i*2+1].speed += speed;
+			if (orders[i*2+1].speed > 10)
+				orders[i*2+1].speed = 10;
 
 			printf("%d %.2f\n", i, speed);
 		}
 	}
-
-
-#if 0
-
-	/* slow down before the curves */
-	for (i = nbOrder-1; i >= 0+1; --i)
-	{
-		if (orders[i-1].speed > orders[i].speed + 0.5*SPEED_LOST_PER_TRACK_PIECE)
-			orders[i-1].speed = orders[i].speed + 0.5*SPEED_LOST_PER_TRACK_PIECE;
-	}
-
-
-	/*
-	for (i = 0; i < data->trackInfo->nbElem; ++i)
-	{
-		if (data->trackInfo->pieces[i].type == PIECE_TYPE_RIGHT)
-			printf("   %d\n", data->trackInfo->pieces[i].maxAngle);
-		else
-			printf("%d %d\n", i, data->trackInfo->pieces[i].maxAngle);
-	}*/
-#endif
 }
 
 
@@ -194,32 +249,35 @@ cJSON *ft_main_msg_make(cJSON *msgType, t_data *data)
 	char *msgTypeName = NULL;
 
 	msgTypeName = msgType->valuestring;
-	if (strcmp("gameStart", msgTypeName) == 0)
+	if (msgTypeName != NULL)
 	{
-		if (data->gameStatus == GAME_STATUS_WAITING)
-			data->gameStatus = GAME_STATUS_QUALIF_START;
-		else if (data->gameStatus == GAME_STATUS_QUALIF_END)
-			data->gameStatus = GAME_STATUS_RACE_START;
-		else
-			printf("Unexpected \"gameStart\" recieved\n");
+		if (strcmp("gameStart", msgTypeName) == 0)
+		{
+			if (data->gameStatus == GAME_STATUS_WAITING)
+				data->gameStatus = GAME_STATUS_QUALIF_START;
+			else if (data->gameStatus == GAME_STATUS_QUALIF_END)
+				data->gameStatus = GAME_STATUS_RACE_START;
+			else
+				printf("Unexpected \"gameStart\" recieved\n");
 
-		msg = throttle_msg(1);
-		printf("--> order initial speed : 1 (gameStart)\n");
-	}
-	else if (strcmp("gameEnd", msgTypeName) == 0)
-	{
-		if (data->gameStatus == GAME_STATUS_QUALIF_START)
-			data->gameStatus = GAME_STATUS_QUALIF_END;
-		else if (data->gameStatus == GAME_STATUS_RACE_START)
-			data->gameStatus = GAME_STATUS_RACE_END;
-		else
-			printf("Unexpected \"gameEnd\" recieved\n");
-	}
-	else if (strcmp("carPositions", msgTypeName) == 0)
-	{
-		if (data->gameStatus == GAME_STATUS_QUALIF_START
-			|| data->gameStatus == GAME_STATUS_RACE_START)
-			msg = ft_orders_next_get(data->carInfo, data->orders);
+			msg = throttle_msg(1);
+			printf("--> order initial speed : 1 (gameStart)\n");
+		}
+		else if (strcmp("gameEnd", msgTypeName) == 0)
+		{
+			if (data->gameStatus == GAME_STATUS_QUALIF_START)
+				data->gameStatus = GAME_STATUS_QUALIF_END;
+			else if (data->gameStatus == GAME_STATUS_RACE_START)
+				data->gameStatus = GAME_STATUS_RACE_END;
+			else
+				printf("Unexpected \"gameEnd\" recieved\n");
+		}
+		else if (strcmp("carPositions", msgTypeName) == 0)
+		{
+			if (data->gameStatus == GAME_STATUS_QUALIF_START
+				|| data->gameStatus == GAME_STATUS_RACE_START)
+				msg = ft_orders_next_get(data->carInfo, data->orders);
+		}
 	}
 
 	if (msg == NULL) /* nothing to say -> ping */
@@ -261,7 +319,8 @@ void ft_init_get_orders(t_data *data, cJSON *msgData)
 
 void ft_update_car_data(cJSON *msgData, t_data *data)
 {
-	static double oldInPieceDistance = 0, oldAngle = 0;
+	static double oldInPieceDistance = 0;
+	/*static double oldAngle = 0;*/
 	double speed;
 	cJSON *ret = NULL;
 
@@ -289,16 +348,20 @@ void ft_update_car_data(cJSON *msgData, t_data *data)
 
 	/* speed */
 	speed = data->carInfo->inPieceDistance - oldInPieceDistance;
-	
-	if (speed > 0)
-		data->carInfo->speedActual = speed;
 
+	if (speed >= 0)
+	{
+		data->carInfo->speedOld = data->carInfo->speedActual;
+		data->carInfo->speedActual = speed;
+	}
+
+	/* pos */
 	data->carInfo->pos = data->carInfo->pieceIndex +
 							data->carInfo->inPieceDistance / data->trackInfo->pieces[data->carInfo->pieceIndex].length;
 
 	/* prepare for next loop */
 	oldInPieceDistance = data->carInfo->inPieceDistance;
-	oldAngle = data->carInfo->angle;
+	/*oldAngle = data->carInfo->angle;*/
 }
 
 char *ft_trackName_get(cJSON *data)
@@ -316,7 +379,7 @@ char *ft_trackName_get(cJSON *data)
 	id = cJSON_GetObjectItem(track, "id");
 	if (id == NULL)
 		return NULL;
-	
+
 	return id->valuestring;
 }
 
@@ -356,9 +419,16 @@ cJSON *ft_utils_field_find(char *s, cJSON* head)
 
 void ft_print_raw_data(char *type, cJSON *data)
 {
-	char *s = cJSON_Print(data);
-	printf("\n==> %s\n%s\n", type, s);
-	free(s);
+	char *s = NULL;
+
+	printf("\n==> %s\n", type);
+
+	s = cJSON_Print(data);
+	if (s != NULL)
+	{
+		printf("%s\n", s);
+		free(s);
+	}
 }
 
 
@@ -368,7 +438,7 @@ void ft_print_gameInit_data(t_data *data)
 
 	/* track data */
 	printf("Track : (right=%d curve=%d)\n", PIECE_TYPE_RIGHT, PIECE_TYPE_CURVE);
-	printf("i\ttype\tlen\tangle\n");
+	printf("i (%d)\ttype\tlen\tangle\n", data->trackInfo->nbElem);
 	for (i = 0; i < data->trackInfo->nbElem; ++i)
 	{
 		printf("%d\t%d\t%.1f\t%d\n", i, data->trackInfo->pieces[i].type,

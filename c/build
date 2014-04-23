@@ -1,4 +1,5 @@
 #!/bin/sh
 date
-echo "-------------------------"
+#git log --pretty=format:'%h' -n 1
+echo "-----------------------------"
 make

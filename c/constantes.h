@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-23 19:12:21
+* @Last Modified time: 2014-04-26 20:10:30
 */
 
 #ifndef CONSTANTES_H
@@ -19,7 +19,7 @@
 /*
 	name of the track to join - define one and only one
 */
-#define ID_TRACK						3
+#define ID_TRACK						1
 
 #if (ID_TRACK == 1)
 	#define TRACK_NAME					"keimola"
@@ -27,6 +27,8 @@
 	#define TRACK_NAME					"germany"
 #elif (ID_TRACK == 3)
 	#define TRACK_NAME					"usa"
+#elif (ID_TRACK == 4)
+	#define TRACK_NAME					"france"
 #endif
 /*
 	number of player for the game
@@ -37,7 +39,7 @@
 	print car pos every PRINT_CAR_POS_MODULO game ticks
 	big number like 3000 to desactivate
 */
-#define PRINT_CAR_POS_MODULO		100
+#define PRINT_CAR_POS_MODULO		500
 
 
 /*************
@@ -72,9 +74,25 @@
 #define SPEED_DIFF_EXTREM_VALUES	0.10
 
 /*
+	Max angle below which the speed is updated
+*/
+#define UPDATE_SPEED_MAX_ANGLE_UPDATE_BIG	50
+#define UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW1	30
+#define UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW2	45
+
+/*
 	i like to recode everything
 */
 #define ft_abs(n)					((n) < 0 ? -(n) : (n))
+
+/*
+	debug stuff
+*/
+#ifndef NOT_AUTO_BUILD
+	#define ft_log_ft_name(s)			printf(">>>>> %s %s - %d %s\n", s, __FUNCTION__, __LINE__, __FILE__)
+#else
+	#define ft_log_ft_name(s)			;
+#endif
 
 /**********
  *  ENUM  *
@@ -147,6 +165,7 @@ typedef struct		s_car_info
 	double			inPieceDistance;
 	double			speedActual;
 	double			speedWanted;
+	double			speedOld;
 	double			lastSpeedOrder;
 	double			angle;
 }					t_car_info;
@@ -168,6 +187,9 @@ typedef struct		s_data
 	t_order			*orders;
 	t_game_status	gameStatus;
 	char			*trackDataPath;
+	char 			*botName;
 }					t_data;
+
+extern int quit;
 
 #endif /* CONSTANTES_H */

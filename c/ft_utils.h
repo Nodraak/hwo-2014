@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-23 12:35:50
+* @Last Modified time: 2014-04-26 14:18:19
 */
 
 #ifndef FT_UTILS_H
@@ -24,10 +24,11 @@
 
 /* for strdup and M_PI warning and error */
 char *strdup(const char *s);
-#define _BSD_SOURCE
+#ifndef _BSD_SOURCE
+	#define _BSD_SOURCE
+#endif
 
-
-void ft_main_loop(int sock);
+void ft_main_loop(int sock, char *botName);
 
 void ft_main_data_parse(cJSON *json, t_data *data);
 cJSON *ft_main_msg_make(cJSON *msgType, t_data *data);

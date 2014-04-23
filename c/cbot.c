@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     write_msg(sock, json);
     cJSON_Delete(json);
 
-    ft_main_loop(sock);
+    ft_main_loop(sock, argv[3]);
 
     return 0;
 }

@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-27 01:02:56
+* @Last Modified time: 2014-04-27 01:36:54
 */
 
 #include "ft_utils.h"
@@ -158,7 +158,7 @@ void ft_main_data_parse(cJSON *json, t_data *data, int tick)
 		ft_main_new_lap(data, json);
 	/* respawn - ci hack */
 	if (data->carInfo->pos == data->carInfo->posOld)
-		data->carInfo->speedWanted = 10;
+		data->carInfo->speedWanted = 5;
 
 	/* printf for debug */
 	if (tick % 20 == 0)
@@ -173,12 +173,33 @@ void ft_main_new_lap(t_data *data, cJSON *json)
 {
 	int i;
 
+	ft_print_raw_data("NEW LAP", json);
+
+	printf("maxAngle msgdata :\n");
+	for (i = 0; i < data->trackInfo->nbElem; ++i)
+	{
+		if (data->trackInfo->pieces[i].type == PIECE_TYPE_RIGHT)
+			printf("   %d\n", data->trackInfo->pieces[i].maxAngle);
+		else
+			printf("%d %d\n", i, data->trackInfo->pieces[i].maxAngle);
+	}
+
 	ft_orders_reenable(data->orders);
 	if (data->carInfo->lap > 0)
+	{
+		printf("==> speed diff :\n");
 		ft_orders_update(data->orders, data->trackInfo);
+	}
 	data->carInfo->lap++;
 
-	ft_print_lapFinished(data, json);
+	printf("speed orders :\npos\tspeed\n");
+	for (i = 0; data->orders[i].type == ORDER_TYPE_SPEED; ++i)
+	{
+		printf("%.3f\t%.1f\n",
+			data->orders[i].pos, data->orders[i].speed);
+	}
+
+	printf("\a\n");
 
 	for (i = 0; i < data->trackInfo->nbElem; ++i)
 		data->trackInfo->pieces[i].maxAngle = 0;
@@ -485,29 +506,4 @@ void ft_print_gameInit_data(t_data *data)
 		}
 	}
 	printf("\n");
-}
-
-void ft_print_lapFinished(t_data *data, cJSON *json)
-{
-	int i;
-
-	ft_print_raw_data("NEW LAP", json);
-
-	printf("maxAngle msgdata :\n");
-	for (i = 0; i < data->trackInfo->nbElem; ++i)
-	{
-		if (data->trackInfo->pieces[i].type == PIECE_TYPE_RIGHT)
-			printf("   %d\n", data->trackInfo->pieces[i].maxAngle);
-		else
-			printf("%d %d\n", i, data->trackInfo->pieces[i].maxAngle);
-	}
-
-	printf("speed orders :\npos\tspeed\n");
-	for (i = 0; data->orders[i].type == ORDER_TYPE_SPEED; ++i)
-	{
-		printf("%.3f\t%.1f\n",
-			data->orders[i].pos, data->orders[i].speed);
-	}
-
-	printf("\a\n");
 }

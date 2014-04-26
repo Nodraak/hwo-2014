@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-27 00:27:52
+* @Last Modified time: 2014-04-27 01:36:54
 */
 
 #ifndef FT_UTILS_H
@@ -39,6 +39,5 @@ cJSON *ft_utils_field_find(char *s, cJSON* head);
 
 void ft_print_raw_data(char *type, cJSON *data);
 void ft_print_gameInit_data(t_data *data);
-void ft_print_lapFinished(t_data *data, cJSON *json);
 
 #endif /* FT_UTILS_H */

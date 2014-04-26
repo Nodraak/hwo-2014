@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-27 00:52:17
+* @Last Modified time: 2014-04-27 01:02:56
 */
 
 #include "ft_utils.h"
@@ -159,7 +159,7 @@ void ft_main_data_parse(cJSON *json, t_data *data, int tick)
 	}
 
 	/* new lap - on ci qualif */
-	if (data->carInfo->pos < data->carInfo->posOld)
+	if (data->carInfo->pos - data->carInfo->posOld < -1)
 		ft_main_new_lap(data, json);
 	/* respawn - ci hack */
 	if (data->carInfo->pos == data->carInfo->posOld)

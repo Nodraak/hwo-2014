@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-26 20:10:30
+* @Last Modified time: 2014-04-27 00:30:11
 */
 
 #ifndef CONSTANTES_H
@@ -19,7 +19,9 @@
 /*
 	name of the track to join - define one and only one
 */
-#define ID_TRACK						1
+#ifndef ID_TRACK
+	#define ID_TRACK						1
+#endif
 
 #if (ID_TRACK == 1)
 	#define TRACK_NAME					"keimola"
@@ -76,9 +78,10 @@
 /*
 	Max angle below which the speed is updated
 */
-#define UPDATE_SPEED_MAX_ANGLE_UPDATE_BIG	50
+#define UPDATE_SPEED_MAX_ANGLE_UPDATE_BIG	45
 #define UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW1	30
-#define UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW2	45
+#define UPDATE_SPEED_MAX_ANGLE_UPDATE_SLOW2	40
+#define UPDATE_SPEED_ANGLE_SLOW_DOWN		50
 
 /*
 	i like to recode everything
@@ -86,13 +89,18 @@
 #define ft_abs(n)					((n) < 0 ? -(n) : (n))
 
 /*
-	debug stuff
+	Some glue fixs - ci need this to compile
 */
-#ifndef NOT_AUTO_BUILD
-	#define ft_log_ft_name(s)			printf(">>>>> %s %s - %d %s\n", s, __FUNCTION__, __LINE__, __FILE__)
-#else
-	#define ft_log_ft_name(s)			;
+char *strdup(const char *s);
+
+#ifndef _BSD_SOURCE
+	#define _BSD_SOURCE
 #endif
+
+#ifndef M_PI
+	#define M_PI 3.14159265436
+#endif
+
 
 /**********
  *  ENUM  *
@@ -159,6 +167,7 @@ typedef struct		s_track_info
 typedef struct		s_car_info
 {
 	double			pos;
+	double			posOld;
 	int				lap;
 
 	int				pieceIndex;
@@ -189,7 +198,5 @@ typedef struct		s_data
 	char			*trackDataPath;
 	char 			*botName;
 }					t_data;
-
-extern int quit;
 
 #endif /* CONSTANTES_H */

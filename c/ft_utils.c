@@ -2,24 +2,21 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-26 21:39:55
+* @Last Modified time: 2014-04-27 00:52:17
 */
 
 #include "ft_utils.h"
-
-void ft_orders_update(t_order *orders, t_track_info *trackInfo);
-cJSON *ft_utils_find_car_pos(char *botName, cJSON *msgData);
 
 /********************
  *  MAIN FUNCTIONS  *
  ********************/
 
-int quit = 0;
-
 void ft_main_loop(int sock, char *botName)
 {
+	int tick = -1;
 	cJSON *json = NULL;
 	cJSON *msg = NULL, *msg_type = NULL;
+	cJSON *msgData = NULL;
 	t_data data = {NULL, NULL, NULL, GAME_STATUS_WAITING, NULL, NULL};
 	data.botName = botName;
 
@@ -33,17 +30,23 @@ void ft_main_loop(int sock, char *botName)
 	data.orders = calloc(MAX_ORDERS, sizeof(t_order));
 	if (data.orders == NULL)
 		error("Error malloc %d %s\n", __LINE__, __FILE__);
+	data.carInfo->lap = -1;
 
 	/* main loop */
-	while ((json = read_msg(sock)) != NULL && !quit)
+	while ((json = read_msg(sock)) != NULL)
 	{
 		msg_type = cJSON_GetObjectItem(json, "msgType");
 		if (msg_type == NULL)
 			error("missing msgType field");
 
 		/* handle recieved data and updated info */
-		ft_main_data_parse(json, &data);
-printf("\tGS=%d", data.gameStatus);
+		msgData = cJSON_GetObjectItem(json, "gameTick");
+		if (msgData)
+			tick = msgData->valueint;
+		else
+			tick = -1;
+		ft_main_data_parse(json, &data, tick);
+
 		/* prepare and send response */
 		msg = ft_main_msg_make(msg_type, &data);
 		write_msg(sock, msg);
@@ -72,15 +75,10 @@ printf("\tGS=%d", data.gameStatus);
 	free(data.orders);
 }
 
-void ft_main_data_parse(cJSON *json, t_data *data)
+void ft_main_data_parse(cJSON *json, t_data *data, int tick)
 {
 	cJSON *msgData = NULL;
 	char *msgType = NULL;
-	int tick = -1;
-
-	msgData = cJSON_GetObjectItem(json, "gameTick");
-	if (msgData)
-		tick = msgData->valueint;
 
 	msgType = cJSON_GetObjectItem(json, "msgType")->valuestring;
 	msgData = cJSON_GetObjectItem(json, "data");
@@ -120,7 +118,7 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 	else if (strcmp(msgType, "carPositions") == 0)
 	{
 		cJSON *posData = ft_utils_find_car_pos(data->botName, msgData->child);
-		ft_update_car_data(posData, data);
+		ft_update_car_data(posData, data, tick);
 
 		/* printf for debug */
 		if (tick % PRINT_CAR_POS_MODULO == 0 && tick != -1)
@@ -138,26 +136,13 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 		else
 		{
 			if (strcmp(name->valuestring, data->botName) == 0)
-			{
-				int i;
-
-				ft_orders_reenable(data->orders);
-				if (data->carInfo->lap > 0)
-					ft_orders_update(data->orders, data->trackInfo);
-				data->carInfo->lap++;
-
-				ft_print_lapFinished(data, json);
-
-				for (i = 0; i < data->trackInfo->nbElem; ++i)
-					data->trackInfo->pieces[i].maxAngle = 0;
-			}
+				ft_main_new_lap(data, json);
 			else
 				printf("## player %s finished a turn.\n", name->valuestring);
 		}
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{
-		data->carInfo->speedWanted = 5;
 		/* TODO */
 	}
 	else if (strcmp(msgType, "tournamentEnd") == 0)
@@ -173,12 +158,35 @@ void ft_main_data_parse(cJSON *json, t_data *data)
 		ft_print_raw_data(msgType, json);
 	}
 
+	/* new lap - on ci qualif */
+	if (data->carInfo->pos < data->carInfo->posOld)
+		ft_main_new_lap(data, json);
+	/* respawn - ci hack */
+	if (data->carInfo->pos == data->carInfo->posOld)
+		data->carInfo->speedWanted = 10;
+
 	/* printf for debug */
 	if (tick % 20 == 0)
 		printf("gameTicks\tpos\tspeed\twanted\tangle\t\torder\n");
 	if (tick != -1)
 		printf("%d\t\t%.2f\t%.1f\t%.1f\t%.1f", tick, data->carInfo->pos,
 			data->carInfo->speedActual, data->carInfo->speedWanted, data->carInfo->angle);
+}
+
+
+void ft_main_new_lap(t_data *data, cJSON *json)
+{
+	int i;
+
+	ft_orders_reenable(data->orders);
+	if (data->carInfo->lap > 0)
+		ft_orders_update(data->orders, data->trackInfo);
+	data->carInfo->lap++;
+
+	ft_print_lapFinished(data, json);
+
+	for (i = 0; i < data->trackInfo->nbElem; ++i)
+		data->trackInfo->pieces[i].maxAngle = 0;
 }
 
 cJSON *ft_utils_find_car_pos(char *botName, cJSON *msgData)
@@ -239,6 +247,19 @@ void ft_orders_update(t_order *orders, t_track_info *trackInfo)
 
 			printf("%d %.2f\n", i, speed);
 		}
+		else if (trackInfo->pieces[i].maxAngle > UPDATE_SPEED_ANGLE_SLOW_DOWN)
+		{
+			/* current */
+			orders[i*2].speed -= 0.1;
+			orders[i*2+1].speed -= 0.1;
+			/* previous */
+			if (i != 0)
+			{
+				orders[i*2-1].speed -= 0.1;
+				orders[i*2-2].speed -= 0.1;
+			}
+			
+		}
 	}
 }
 
@@ -280,8 +301,17 @@ cJSON *ft_main_msg_make(cJSON *msgType, t_data *data)
 		}
 	}
 
-	if (msg == NULL) /* nothing to say -> ping */
-		msg = ping_msg();
+	/* nothing to say -> ping (or speed if beginning of game) */
+	if (msg == NULL)
+	{
+		if (data->carInfo->speedActual < 2)
+		{
+			data->carInfo->speedWanted = 5;
+			msg = throttle_msg(0.5);
+		}
+		else
+			msg = ping_msg();	
+	}
 
 	return msg;
 }
@@ -317,7 +347,7 @@ void ft_init_get_orders(t_data *data, cJSON *msgData)
  *  UPDATE DATA  *
  *****************/
 
-void ft_update_car_data(cJSON *msgData, t_data *data)
+void ft_update_car_data(cJSON *msgData, t_data *data, int tick)
 {
 	static double oldInPieceDistance = 0;
 	/*static double oldAngle = 0;*/
@@ -349,13 +379,14 @@ void ft_update_car_data(cJSON *msgData, t_data *data)
 	/* speed */
 	speed = data->carInfo->inPieceDistance - oldInPieceDistance;
 
-	if (speed >= 0)
+	if (speed >= 0 && tick > 0)
 	{
 		data->carInfo->speedOld = data->carInfo->speedActual;
 		data->carInfo->speedActual = speed;
 	}
 
 	/* pos */
+	data->carInfo->posOld = data->carInfo->pos;
 	data->carInfo->pos = data->carInfo->pieceIndex +
 							data->carInfo->inPieceDistance / data->trackInfo->pieces[data->carInfo->pieceIndex].length;
 
@@ -449,12 +480,12 @@ void ft_print_gameInit_data(t_data *data)
 	/* orders data */
 	printf("Orders : (type : speed=%d switch=%d) (switch : left=%d right=%d)\n",
 		ORDER_TYPE_SPEED, ORDER_TYPE_SWITCH, ORDER_SWITCH_LEFT, ORDER_SWITCH_RIGHT);
-	printf("pos\ttype\tspeed\tswitch\n");
+	printf("status\tpos\ttype\tspeed\tswitch\n");
 	for (i = 0; i < MAX_ORDERS; ++i)
 	{
 		if (data->orders[i].status != ORDER_STATUS_DISABLED)
 		{
-			printf("%.1f\t%d\t%.1f\t%d\n", data->orders[i].pos,
+			printf("%d\t%.1f\t%d\t%.1f\t%d\n", data->orders[i].status, data->orders[i].pos,
 				data->orders[i].type, data->orders[i].speed, data->orders[i].switchDir);
 		}
 	}
@@ -485,5 +516,3 @@ void ft_print_lapFinished(t_data *data, cJSON *json)
 
 	printf("\a\n");
 }
-
-

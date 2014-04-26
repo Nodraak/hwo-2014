@@ -134,12 +134,7 @@ void ft_main_data_parse(cJSON *json, t_data *data, int tick)
 		if (name == NULL)
 			printf("WARNING %d %s.\n", __LINE__, __FILE__);
 		else
-		{
-			if (strcmp(name->valuestring, data->botName) == 0)
-				ft_main_new_lap(data, json);
-			else
-				printf("## player %s finished a turn.\n", name->valuestring);
-		}
+			printf("## player %s finished a turn.\n", name->valuestring);
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{

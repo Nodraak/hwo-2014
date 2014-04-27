@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-19 12:09:18
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-27 00:30:11
+* @Last Modified time: 2014-04-27 12:37:29
 */
 
 #ifndef CONSTANTES_H
@@ -61,7 +61,7 @@
 	when slowing down, speed diff per each track piece
 	if the car crash engage the curve to quickly, decrease.
 */
-#define SPEED_LOST_PER_TRACK_PIECE	2
+#define SPEED_LOST_PER_TRACK_PIECE	1.7
 
 /*
 	Send order SEND_ORDER_OFFSET (unit : pieceIndex) before the car reach the asked pos

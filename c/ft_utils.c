@@ -2,7 +2,7 @@
 * @Author: Adrien Chardon
 * @Date:   2014-04-16 23:53:27
 * @Last Modified by:   Adrien Chardon
-* @Last Modified time: 2014-04-27 01:55:06
+* @Last Modified time: 2014-04-27 21:43:54
 */
 
 #include "ft_utils.h"
@@ -135,6 +135,11 @@ void ft_main_data_parse(cJSON *json, t_data *data, int tick)
 			printf("WARNING %d %s.\n", __LINE__, __FILE__);
 		else
 			printf("## player %s finished a turn.\n", name->valuestring);
+	}
+	else if (strcmp(msgType, "crash") == 0)
+	{
+		/* TODO */
+		printf("==> crash <=== (will be fixed)\n");
 	}
 	else if (strcmp(msgType, "spawn") == 0)
 	{
